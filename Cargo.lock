@@ -6,6 +6,7 @@ version = 4
 name = "bgt60tr13c"
 version = "0.1.0"
 dependencies = [
+ "embedded-hal",
  "embedded-hal-async",
 ]
 

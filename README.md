@@ -1,5 +1,11 @@
-# BGT60TR13C
+# `bgt60tr13`
 An async and no_std rust library to interface with the 60GHz FMCW radar BGT60TR13C from Infineon via SPI.
+
+## What works
+Nothing yet.
+
+## Basic Usage
+TODO.
 
 ## Modules
 There are a couple of ready-made modules with the BGT60TR13C that include all required supporting components:
