@@ -1,6 +1,8 @@
 
 use bitfield_struct::bitfield;
 
+// See also https://github.com/Infineon/sensor-xensiv-bgt60trxx/blob/master/xensiv_bgt60trxx_regs.h
+
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
 #[repr(u8)]
