@@ -1,4 +1,6 @@
 
+use bitfield_struct::bitfield;
+
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
 #[repr(u8)]
@@ -88,5 +90,101 @@ pub enum Register {
     PLL_DFT0 = 0x59,
     STAT0 = 0x5D,
     SADC_RESULT = 0x5E,
-    FSTAT = 0x5F
+    FSTAT = 0x5F,
+    FIFO = 0x60
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct MAIN {
+    pub frame_start: bool,
+    pub sw_reset: bool,
+    pubfsm_reset: bool,
+    #[bits(8)]
+    pub tr_wkup: usize,
+    #[bits(4)]
+    pub tw_wkup_mul: usize,
+    pub cw_mode: bool,
+    #[bits(2)] 
+    pub sadc_clkdiv: usize,
+    #[bits(2)]
+    pub bg_clk_div: usize,
+    #[bits(2)]
+    pub load_strength: usize,
+    pub ldo_mode: bool,
+    #[bits(9)] // padding
+    __: usize,
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct CHIP_ID {
+    #[bits(8)]
+    pub digital_id: usize,
+    #[bits(16)]
+    pub rf_id: usize,
+    #[bits(8)]
+    __: usize,
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct STAT1 {
+    #[bits(12)]
+    pub shape_grp_cnt: usize,
+    #[bits(12)]
+    pub frame_cnt: usize,
+    #[bits(8)]
+    __: usize,
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct SFCTL {
+    #[bits(13)]
+    pub fifo_cref: usize,
+    pub fifo_lp_mode: bool,
+    #[bits(2)]
+    __: usize,
+    pub miso_hs_rd: bool,    
+    pub lfsr_en: bool,
+    pub prefix_en: bool,
+    #[bits(13)]
+    __: usize,
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct STAT0 {
+    pub sadc_rdy: bool,
+    pub madc_rdy: bool,
+    pub madc_bgup: bool,
+    pub ldo_rdy: bool,
+    pub __: bool,
+    #[bits(3)]
+    pub pm: usize,
+    #[bits(3)]
+    pub ch_idx: usize,
+    #[bits(3)]
+    pub sd_idx: usize,
+    #[bits(18)]
+    pub __: usize,    
+}
+
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+struct FSTAT {
+    #[bits(14)]
+    fill_status: usize,
+    #[bits(3)]
+    __: usize,
+    pub clk_num_err: bool,
+    pub spi_burst_err: bool,
+    pub fuf_err: bool,
+    pub empty: bool,
+    pub cref: bool,
+    pub full: bool,
+    pub fof_err: bool,
+    #[bits(8)]
+    __: usize,
 }

@@ -12,3 +12,4 @@ categories = ["embedded", "no-std", "hardware-support", "asynchronous", "sensors
 [dependencies]
 embedded-hal-async = "1.0.0"
 embedded-hal = "1.0.0"
+bitfield-struct = "0.10.1"
