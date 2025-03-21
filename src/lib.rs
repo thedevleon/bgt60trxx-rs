@@ -1,11 +1,16 @@
+
+pub mod config;
+pub mod register;
+
+use core::panic;
+
+use config::Config;
+use register::CHIP_ID;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::digital::Wait;
 use embedded_hal_async::spi::SpiDevice;
 use register::Register;
-
-pub mod config;
-pub mod register;
 
 pub struct Radar<SPI, RST, IRQ, DLY>
 {
@@ -13,10 +18,13 @@ pub struct Radar<SPI, RST, IRQ, DLY>
     reset_pin: RST,
     interrupt_pin: IRQ,
     delay: DLY,
+    config: Config,
 }
 
 const READ_BIT: u8 = 0 << 7;
 const WRITE_BIT: u8 = 1 << 7;
+
+// TODO own error type
 
 impl <SPI, RST, IRQ, DLY> Radar<SPI, RST, IRQ, DLY>
 where
@@ -25,13 +33,29 @@ where
     IRQ: Wait,
     DLY: DelayNs
 {
-    pub fn new(spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY) -> Self {
+    pub fn new(spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY, config: Config) -> Self {
         Radar {
             spi,
             reset_pin,
             interrupt_pin,
             delay,
+            config,
         }
+    }
+
+    pub async fn init(&mut self) -> Result<(), SPI::Error> {
+        self.hw_reset().await;
+
+        let chip_id = self.get_chip_id().await?;
+        if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
+            panic!("Invalid chip id"); // TODO wrap in own error type
+        }
+
+        for register in self.config.registers.iter() {
+            // Write all registers
+        }
+
+        Ok(())
     }
 
     pub async fn hw_reset(&mut self) -> () {
@@ -60,10 +84,9 @@ where
         self.write_register(Register::MAIN, 0b1).await
     }
 
-    pub async fn get_chip_id(&mut self) -> Result<(u16, u8), SPI::Error> {
+    pub async fn get_chip_id(&mut self) -> Result<CHIP_ID, SPI::Error> {
         let reg = self.read_register(Register::CHIP_ID).await?;
-        // 23:8: DIGITAL_ID, 7:0: RF_ID
-        Ok(((reg >> 8) as u16, reg as u8))
+        Ok(CHIP_ID::from(reg))
     }
 
     async fn read_register(&mut self, reg: Register) -> Result<u32, SPI::Error> {

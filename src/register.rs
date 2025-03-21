@@ -98,14 +98,20 @@ pub enum Register {
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct MAIN {
+pub struct MAIN {
+    #[bits(1, access = WO)]
     pub frame_start: bool,
+    #[bits(1, access = WO)]
     pub sw_reset: bool,
-    pubfsm_reset: bool,
+    #[bits(1, access = WO)]
+    pub fsm_reset: bool,
+    #[bits(1, access = WO)]
+    pub fifo_reset: bool,
     #[bits(8)]
     pub tr_wkup: usize,
     #[bits(4)]
     pub tw_wkup_mul: usize,
+    #[bits(1)]
     pub cw_mode: bool,
     #[bits(2)] 
     pub sadc_clkdiv: usize,
@@ -114,16 +120,16 @@ struct MAIN {
     #[bits(2)]
     pub load_strength: usize,
     pub ldo_mode: bool,
-    #[bits(9)] // padding
+    #[bits(8)] // padding
     __: usize,
 }
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct CHIP_ID {
-    #[bits(8)]
+pub struct CHIP_ID {
+    #[bits(8, access = RO)]
     pub digital_id: usize,
-    #[bits(16)]
+    #[bits(16, access = RO)]
     pub rf_id: usize,
     #[bits(8)]
     __: usize,
@@ -131,10 +137,10 @@ struct CHIP_ID {
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct STAT1 {
-    #[bits(12)]
+pub struct STAT1 {
+    #[bits(12, access = RO)]
     pub shape_grp_cnt: usize,
-    #[bits(12)]
+    #[bits(12, access = RO)]
     pub frame_cnt: usize,
     #[bits(8)]
     __: usize,
@@ -142,7 +148,7 @@ struct STAT1 {
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct SFCTL {
+pub struct SFCTL {
     #[bits(13)]
     pub fifo_cref: usize,
     pub fifo_lp_mode: bool,
@@ -157,17 +163,21 @@ struct SFCTL {
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct STAT0 {
+pub struct STAT0 {
+    #[bits(1, access = RO)]
     pub sadc_rdy: bool,
+    #[bits(1, access = RO)]
     pub madc_rdy: bool,
+    #[bits(1, access = RO)]
     pub madc_bgup: bool,
+    #[bits(1, access = RO)]
     pub ldo_rdy: bool,
     pub __: bool,
-    #[bits(3)]
+    #[bits(3, access = RO)]
     pub pm: usize,
-    #[bits(3)]
+    #[bits(3, access = RO)]
     pub ch_idx: usize,
-    #[bits(3)]
+    #[bits(3, access = RO)]
     pub sd_idx: usize,
     #[bits(18)]
     pub __: usize,    
@@ -175,18 +185,40 @@ struct STAT0 {
 
 #[bitfield(u32)]
 #[allow(non_camel_case_types)]
-struct FSTAT {
-    #[bits(14)]
+pub struct FSTAT {
+    #[bits(14, access = RO)]
     fill_status: usize,
     #[bits(3)]
     __: usize,
+    #[bits(1, access = RO)]
     pub clk_num_err: bool,
+    #[bits(1, access = RO)]
     pub spi_burst_err: bool,
+    #[bits(1, access = RO)]
     pub fuf_err: bool,
+    #[bits(1, access = RO)]
     pub empty: bool,
+    #[bits(1, access = RO)]
     pub cref: bool,
+    #[bits(1, access = RO)]
     pub full: bool,
+    #[bits(1, access = RO)]
     pub fof_err: bool,
     #[bits(8)]
+    __: usize,
+}
+
+#[bitfield(u8)]
+#[allow(non_camel_case_types)]
+pub struct GSR0 {
+    #[bits(1, access = RO)]
+    pub clock_number_error: bool,
+    #[bits(1, access = RO)]
+    pub spi_burst_error: bool,
+    #[bits(1, access = RO)]
+    pub miso_hs_read: bool,
+    #[bits(1, access = RO)]
+    pub fou_err: bool,
+    #[bits(4)]
     __: usize,
 }
