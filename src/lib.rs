@@ -57,7 +57,7 @@ where
     }
 
     pub async fn init(&mut self) -> Result<(), RadarError> {
-        self.hw_reset().await;
+        let _ = self.hw_reset().await?;
 
         let chip_id = self.get_chip_id().await?;
 
@@ -101,22 +101,39 @@ where
     }
 
     async fn set_fifo_limit(&mut self, limit: u32) -> Result<(), RadarError> {
-        // TODO: assert limit % 2 == 0
-        // TODO assert limit < 8192 for BGT60TR13C
-        // TODO assert limit < 2048 for BGT60UTR11AIP
+        // Check if limit is a power of two
+        if limit % 2 != 0 {
+            return Err(RadarError::NotAPowerOfTwo);
+        }
+
+        // Check if fifo is large enough
+        match self.variant {
+            Variant::BGT60TR13C => {
+                if limit >= 8192 {
+                    return Err(RadarError::FifoTooSmall);
+                }
+            }
+            Variant::BGT60UTR11AIP => {
+                if limit >= 2048 {
+                    return Err(RadarError::FifoTooSmall);
+                }
+            }
+        }
 
         let mut reg: SFCTL = self.read_register(register::Register::SFCTL).await?.into();
         reg.set_fifo_cref(((limit / 2) - 1) as usize);
         self.write_register(Register::SFCTL, reg.into()).await?;
+
         Ok(())
     }
 
-    pub async fn hw_reset(&mut self) -> () {
+    pub async fn hw_reset(&mut self) -> Result<(), RadarError> {
         self.delay.delay_ns(100).await; // T_CS_BRES = 100ns
-        self.reset_pin.set_low().unwrap();
+        self.reset_pin.set_low().map_err(|e| RadarError::Gpio(e.kind()))?;
         self.delay.delay_ns(100).await; // T_RES = 100ns
-        self.reset_pin.set_high().unwrap();
+        self.reset_pin.set_high().map_err(|e| RadarError::Gpio(e.kind()))?;
         self.delay.delay_ns(100).await; // T_CS_ARES = 100ns
+        Ok(())
     }
 
     pub async fn sw_reset(&mut self) -> Result<(), RadarError> {

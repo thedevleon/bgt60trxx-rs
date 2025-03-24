@@ -8,6 +8,8 @@ pub enum Error {
     Spi(SpiErrorKind),
     Gpio(DigitalErrorKind),
     ChipIdMismatch,
+    FifoTooSmall,
+    NotAPowerOfTwo,
 }
 
 impl Display for Error
@@ -17,6 +19,8 @@ impl Display for Error
             Error::Spi(err) => write!(f, "SPI error: {}", err),
             Error::Gpio(err) => write!(f, "GPIO error: {}", err),
             Error::ChipIdMismatch => write!(f, "Chip ID mismatch"),
+            Error::FifoTooSmall => write!(f, "FIFO too small"),
+            Error::NotAPowerOfTwo => write!(f, "Value is not a power of two"),
         }
     }
 }
