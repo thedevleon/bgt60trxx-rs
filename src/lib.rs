@@ -1,8 +1,8 @@
 pub mod config;
 pub mod register;
+pub mod error;
 
 use core::panic;
-
 use config::Config;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::delay::DelayNs;
@@ -27,8 +27,6 @@ pub struct Radar<SPI, RST, IRQ, DLY> {
 
 const READ_BIT: u8 = 0 << 7;
 const WRITE_BIT: u8 = 1 << 7;
-
-// TODO own error type
 
 impl<SPI, RST, IRQ, DLY> Radar<SPI, RST, IRQ, DLY>
 where
@@ -84,7 +82,7 @@ where
         Ok(())
     }
 
-    pub async fn configure(&mut self, config: Config) -> Result<(), SPI::Error> {
+    pub async fn configure(&mut self, config: Config) -> Result<(), error::RadarError> {
         // SW reset
         self.sw_reset().await?;
 
@@ -106,7 +104,7 @@ where
 
         let mut reg: SFCTL = self.read_register(register::Register::SFCTL).await?.into();
         reg.set_fifo_cref(((limit / 2) - 1) as usize);
-        self.write_register(Register::MAIN, reg.into()).await?;
+        self.write_register(Register::SFCTL, reg.into()).await?;
         Ok(())
     }
 
@@ -175,7 +173,7 @@ where
         ];
         self.spi.transfer_in_place(&mut buffer).await
         // buffer[0] will contain GSR0 (Global Status)
-        // If want, we could also verify that the write was successfull by ccomparing the data with buffer[1] to buffer[3]
+        // If want, we could also verify that the write was successfull by comparing the data with buffer[1] to buffer[3]
     }
 
     async fn write_registers(&mut self, registers: [u32; 38]) -> Result<(), SPI::Error> {
