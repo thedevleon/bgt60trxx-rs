@@ -10,6 +10,7 @@ pub struct Config {
     pub chirp_repetition_time_s: f64,
     pub frame_repetition_time_s: f64,
     pub sample_rate_hz: u32,
+    pub fifo_limit: u32,
     pub registers: [u32; 38],
 }
 
@@ -26,6 +27,7 @@ impl Config {
         chirp_repetition_time_s: f64,
         frame_repetition_time_s: f64,
         sample_rate_hz: u32,
+        fifo_limit: u32,
         registers: [u32; 38],
     ) -> Self {
         Config {
@@ -40,6 +42,7 @@ impl Config {
             chirp_repetition_time_s,
             frame_repetition_time_s,
             sample_rate_hz,
+            fifo_limit,
             registers,
         }
     }
@@ -59,6 +62,7 @@ impl Default for Config {
             chirp_repetition_time_s: 7e-05,
             frame_repetition_time_s: 5e-3,
             sample_rate_hz: 2330000,
+            fifo_limit: 6144, // rx_antennas*num_chirps_per_frame*num_samples_per_chirp,
             registers: [
                 0x11e8270, 0x3088210, 0x9e967fd, 0xb0805b4, 0xdf02fff, 0xf010700, 0x11000000,
                 0x13000000, 0x15000000, 0x17000be0, 0x19000000, 0x1b000000, 0x1d000000, 0x1f000b60,

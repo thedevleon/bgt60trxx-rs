@@ -92,8 +92,10 @@ pub enum Register {
     PLL_DFT0 = 0x59,
     STAT0 = 0x5D,
     SADC_RESULT = 0x5E,
-    FSTAT = 0x5F,
-    FIFO = 0x60
+    FSTAT_TR13C = 0x5F,
+    FIFO_TR13C = 0x60,
+    FSTAT_UTR11 = 0x63,
+    FIFO_UTR11 = 0x64
 }
 
 #[bitfield(u32)]
