@@ -1,12 +1,12 @@
 [package]
-name = "bgt60tr13c"
-description = "An async and no_std library for the 60GHz FMCW radar BGT60TR13C from Infineon"
+name = "bgt60trxx"
+description = "An async and no_std library for the XENSIV™ BGT60TRxx 60 GHz FMCW radar sensors from Infineon"
 version = "0.1.0"
 authors = ["Leon Mueller"]
 edition = "2024"
-repository = "https://github.com/thedevleon/bgt60tr13c-rs"
+repository = "https://github.com/thedevleon/bgt60trxx-rs"
 license = "MIT"
-keywords = ["bgt60tr13c", "radar", "60ghz", "fmcw", "infineon"]
+keywords = ["bgt60tr13c", "bgt60utr11aip", "bgt60trxx", "bgt60tr", "radar", "60ghz", "fmcw", "infineon", "xensiv"]
 categories = ["embedded", "no-std", "hardware-support", "asynchronous", "sensors"]
 
 [dependencies]

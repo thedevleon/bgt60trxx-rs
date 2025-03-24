@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "bgt60tr13c"
+name = "bgt60trxx"
 version = "0.1.0"
 dependencies = [
  "bitfield-struct",

@@ -12,12 +12,18 @@ use embedded_hal_async::digital::Wait;
 use embedded_hal_async::spi::SpiDevice;
 use register::Register;
 
+pub enum Variant {
+    BGT60TR13C,
+    BGT60UTR11AIP
+}
+
 pub struct Radar<SPI, RST, IRQ, DLY>
 {
     spi: SPI,
     reset_pin: RST,
     interrupt_pin: IRQ,
     delay: DLY,
+    variant: Variant,
     config: Config,
 }
 
@@ -33,12 +39,13 @@ where
     IRQ: Wait,
     DLY: DelayNs
 {
-    pub fn new(spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY, config: Config) -> Self {
+    pub fn new(spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY, variant: Variant, config: Config) -> Self {
         Radar {
             spi,
             reset_pin,
             interrupt_pin,
             delay,
+            variant,
             config,
         }
     }
@@ -47,8 +54,18 @@ where
         self.hw_reset().await;
 
         let chip_id = self.get_chip_id().await?;
-        if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
-            panic!("Invalid chip id"); // TODO wrap in own error type
+
+        match self.variant {
+            Variant::BGT60TR13C => {
+                if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
+                    panic!("Invalid chip id"); // TODO wrap in own error type
+                }
+            },
+            Variant::BGT60UTR11AIP => {
+                if chip_id.digital_id() != 7 && (chip_id.rf_id() != 7 || chip_id.rf_id() != 9 || chip_id.rf_id() != 12) {
+                    panic!("Invalid chip id"); // TODO wrap in own error type
+                }
+            }
         }
 
         for register in self.config.registers.iter() {
