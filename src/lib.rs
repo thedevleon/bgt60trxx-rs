@@ -2,12 +2,15 @@ pub mod config;
 pub mod register;
 pub mod error;
 
-use core::panic;
 use config::Config;
+use error::Error as RadarError;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::digital::Wait;
 use embedded_hal_async::spi::SpiDevice;
+use embedded_hal_async::spi::Error as SpiError;
+use embedded_hal::digital::Error as DigitalError;
+
 use register::{Register, SFCTL};
 use register::{CHIP_ID, MAIN};
 
@@ -53,7 +56,7 @@ where
         }
     }
 
-    pub async fn init(&mut self) -> Result<(), SPI::Error> {
+    pub async fn init(&mut self) -> Result<(), RadarError> {
         self.hw_reset().await;
 
         let chip_id = self.get_chip_id().await?;
@@ -61,14 +64,14 @@ where
         match self.variant {
             Variant::BGT60TR13C => {
                 if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
-                    panic!("Invalid chip id"); // TODO wrap in own error type
+                    return Err(RadarError::ChipIdMismatch);
                 }
             }
             Variant::BGT60UTR11AIP => {
                 if chip_id.digital_id() != 7
                     && (chip_id.rf_id() != 7 || chip_id.rf_id() != 9 || chip_id.rf_id() != 12)
                 {
-                    panic!("Invalid chip id"); // TODO wrap in own error type
+                    return Err(RadarError::ChipIdMismatch);
                 }
             }
         }
@@ -82,7 +85,7 @@ where
         Ok(())
     }
 
-    pub async fn configure(&mut self, config: Config) -> Result<(), error::RadarError> {
+    pub async fn configure(&mut self, config: Config) -> Result<(), RadarError> {
         // SW reset
         self.sw_reset().await?;
 
@@ -97,7 +100,7 @@ where
         Ok(())
     }
 
-    async fn set_fifo_limit(&mut self, limit: u32) -> Result<(), SPI::Error> {
+    async fn set_fifo_limit(&mut self, limit: u32) -> Result<(), RadarError> {
         // TODO: assert limit % 2 == 0
         // TODO assert limit < 8192 for BGT60TR13C
         // TODO assert limit < 2048 for BGT60UTR11AIP
@@ -116,67 +119,67 @@ where
         self.delay.delay_ns(100).await; // T_CS_ARES = 100ns
     }
 
-    pub async fn sw_reset(&mut self) -> Result<(), SPI::Error> {
+    pub async fn sw_reset(&mut self) -> Result<(), RadarError> {
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_sw_reset(true);
         self.write_register(Register::MAIN, reg.into()).await
     }
 
-    pub async fn fifo_reset(&mut self) -> Result<(), SPI::Error> {
+    pub async fn fifo_reset(&mut self) -> Result<(), RadarError> {
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_fifo_reset(true);
         self.write_register(Register::MAIN, reg.into()).await
     }
 
-    pub async fn fsm_reset(&mut self) -> Result<(), SPI::Error> {
+    pub async fn fsm_reset(&mut self) -> Result<(), RadarError> {
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_fsm_reset(true);
         self.write_register(Register::MAIN, reg.into()).await
     }
 
-    pub async fn get_chip_id(&mut self) -> Result<CHIP_ID, SPI::Error> {
+    pub async fn get_chip_id(&mut self) -> Result<CHIP_ID, RadarError> {
         let reg = self.read_register(Register::CHIP_ID).await?;
         Ok(CHIP_ID::from(reg))
     }
 
-    pub async fn start(&mut self) -> Result<(), SPI::Error> {
+    pub async fn start(&mut self) -> Result<(), RadarError> {
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_frame_start(true);
         self.write_register(Register::MAIN, reg.into()).await
     }
 
-    pub async fn stop(&mut self) -> Result<(), SPI::Error> {
+    pub async fn stop(&mut self) -> Result<(), RadarError> {
         self.sw_reset().await?;
         Ok(())
     }
 
     // TODO: make this a stream
-    pub async fn get_fifo_data(&mut self) -> Result<(), SPI::Error> {
-        self.interrupt_pin.wait_for_high().await.unwrap();
+    pub async fn get_fifo_data(&mut self) -> Result<(), RadarError> {
+        self.interrupt_pin.wait_for_high().await.map_err(|e| RadarError::Gpio(e.kind()))?;
         //TODO: read data from fifo via burst mode
         Ok(())
     }
 
-    async fn read_register(&mut self, reg: Register) -> Result<u32, SPI::Error> {
+    async fn read_register(&mut self, reg: Register) -> Result<u32, RadarError> {
         let mut buffer: [u8; 4] = [reg as u8 | READ_BIT, 0, 0, 0];
-        self.spi.transfer_in_place(&mut buffer).await?;
+        self.spi.transfer_in_place(&mut buffer).await.map_err(|e| RadarError::Spi(e.kind()))?;
         // buffer[0] will contain GSR0 (Global Status)
         Ok((buffer[1] as u32) << 16 | (buffer[2] as u32) << 8 | (buffer[3] as u32))
     }
 
-    async fn write_register(&mut self, reg: Register, data: u32) -> Result<(), SPI::Error> {
+    async fn write_register(&mut self, reg: Register, data: u32) -> Result<(), RadarError> {
         let mut buffer: [u8; 4] = [
             reg as u8 | WRITE_BIT,
             ((data >> 16) & 0xFF) as u8,
             ((data >> 8) & 0xFF) as u8,
             (data & 0xFF) as u8,
         ];
-        self.spi.transfer_in_place(&mut buffer).await
+        self.spi.transfer_in_place(&mut buffer).await.map_err(|e| RadarError::Spi(e.kind()))
         // buffer[0] will contain GSR0 (Global Status)
         // If want, we could also verify that the write was successfull by comparing the data with buffer[1] to buffer[3]
     }
 
-    async fn write_registers(&mut self, registers: [u32; 38]) -> Result<(), SPI::Error> {
+    async fn write_registers(&mut self, registers: [u32; 38]) -> Result<(), RadarError> {
         // TODO
         Ok(())
     }
