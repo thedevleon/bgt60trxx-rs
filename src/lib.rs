@@ -233,6 +233,14 @@ where
     }
 
     // TODO: make this a stream
+    /// Reads the data from the FIFO by performing a burst read of the FIFO register.
+    /// The function will wait for the interrupt pin to be pulled high before reading the data.
+    /// 
+    /// The buffer must be the correct size to hold a single frame.
+    /// The size of the buffer can be calculated with the formula:
+    /// 
+    /// `buffer_size = (num_samples_per_chirp * num_chirps_per_frame * rx_antennas * 12) / 8`
+    /// 
     pub async fn get_fifo_data(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
 
@@ -320,6 +328,9 @@ where
         }
     }
 
+    /// Generates the next test word based on the current word.
+    /// 
+    /// To be used in conjunction with [`Self::enable_test_mode()`].
     pub fn get_next_test_word(current: u16) -> u16 {
         (current >> 1)
             | (((current << 11) ^ (current << 10) ^ (current << 9) ^ (current << 3)) & 0x0800)
