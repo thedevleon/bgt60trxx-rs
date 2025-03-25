@@ -221,7 +221,7 @@ pub struct BURST {
     pub rwb: bool,
     #[bits(7)]
     pub saddr: usize,
-    #[bits(1)]
+    #[bits(1, default = true)]
     pub rw: bool,
     #[bits(7, default = 0x7F)]
     pub addr: usize,
@@ -240,4 +240,10 @@ pub struct GSR0 {
     pub fou_err: bool,
     #[bits(4)]
     __: usize,
+}
+
+impl GSR0 {
+    pub fn has_error(&self) -> bool {
+        self.clock_number_error() || self.spi_burst_error() || self.fou_err()
+    }
 }
