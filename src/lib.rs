@@ -1,3 +1,7 @@
+#![deny(unsafe_code)]
+#![no_std]
+#![doc = include_str!("../README.md")]
+
 pub mod config;
 pub mod error;
 pub mod register;
