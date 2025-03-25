@@ -24,6 +24,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bgt60trxx"
+version = "0.1.0"
+dependencies = [
+ "bitfield-struct",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+]
+
+[[package]]
 name = "bitfield"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,6 +46,17 @@ name = "bitfield-macros"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "331afbb18ce7b644c0b428726d369c5dd37ca0b815d72a459fcc2896c3c8ad32"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "bitfield-struct"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2be5a46ba01b60005ae2c51a36a29cfe134bcacae2dd5cedcd4615fbaad1494b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -314,6 +334,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-hal-bus"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513e0b3a8fb7d3013a8ae17a834283f170deaf7d0eeab0a7c1a36ad4dd356d22"
+dependencies = [
+ "critical-section",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+]
+
+[[package]]
 name = "embedded-io"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -557,10 +588,12 @@ dependencies = [
 name = "esp32c6"
 version = "0.1.0"
 dependencies = [
+ "bgt60trxx",
  "critical-section",
  "defmt",
  "embassy-executor",
  "embassy-time",
+ "embedded-hal-bus",
  "esp-hal",
  "esp-hal-embassy",
  "panic-rtt-target",

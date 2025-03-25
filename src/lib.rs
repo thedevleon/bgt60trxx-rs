@@ -42,24 +42,23 @@ where
     IRQ: Wait,
     DLY: DelayNs,
 {
-    pub fn new(variant: Variant, spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY) -> Self {
-        Radar {
+    
+    /// Initializes the radar by performing a hardware reset and checking that the chip ID matches the expected variant.
+    pub async fn new(variant: Variant, spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY) -> Result<Self, Error> {
+        let mut this = Radar {
             spi,
             reset_pin,
             interrupt_pin,
             delay,
             variant,
             config: None,
-        }
-    }
+        };
 
-    /// Initializes the radar by performing a hardware reset and checking that the chip ID matches the expected variant.
-    pub async fn init(&mut self) -> Result<(), Error> {
-        self.reset_hw().await?;
+        this.reset_hw().await?;
 
-        let chip_id = self.get_chip_id().await?;
+        let chip_id = this.get_chip_id().await?;
 
-        match self.variant {
+        match this.variant {
             Variant::BGT60TR13C => {
                 if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
                     return Err(Error::VariantMismatch);
@@ -75,7 +74,7 @@ where
             }
         }
 
-        Ok(())
+        Ok(this)
     }
 
     /// Configures the radar.
@@ -331,12 +330,12 @@ where
             Ok(())
         }
     }
+}
 
-    /// Generates the next test word based on the current word.
-    /// 
-    /// To be used in conjunction with [`Self::enable_test_mode()`].
-    pub fn get_next_test_word(current: u16) -> u16 {
-        (current >> 1)
-            | (((current << 11) ^ (current << 10) ^ (current << 9) ^ (current << 3)) & 0x0800)
-    }
+/// Generates the next test word based on the current word.
+/// 
+/// To be used in conjunction with [`Self::enable_test_mode()`].
+pub fn get_next_test_word(current: u16) -> u16 {
+    (current >> 1)
+        | (((current << 11) ^ (current << 10) ^ (current << 9) ^ (current << 3)) & 0x0800)
 }
