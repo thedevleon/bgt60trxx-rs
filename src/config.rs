@@ -1,3 +1,7 @@
+/// The configuration of the BGT60TR13C radar sensor, mostly used for reference only.
+/// The actual configuration is done via the generated register list.
+/// 
+/// The fields of the configuration match the fields of the JSON required for the bgt60-configurator-cli.
 pub struct Config {
     pub rx_antennas: u8,
     pub tx_antennas: u8,
@@ -10,7 +14,6 @@ pub struct Config {
     pub chirp_repetition_time_s: f64,
     pub frame_repetition_time_s: f64,
     pub sample_rate_hz: u32,
-    pub fifo_limit: u32,
     pub registers: [u32; 38],
 }
 
@@ -42,9 +45,6 @@ impl Config {
             chirp_repetition_time_s,
             frame_repetition_time_s,
             sample_rate_hz,
-            fifo_limit: num_samples_per_chirp as u32
-                * num_chirps_per_frame as u32
-                * rx_antennas as u32,
             registers,
         }
     }
