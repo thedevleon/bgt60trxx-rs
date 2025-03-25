@@ -42,9 +42,9 @@ impl Config {
             chirp_repetition_time_s,
             frame_repetition_time_s,
             sample_rate_hz,
-            fifo_limit: rx_antennas as u32
+            fifo_limit: num_samples_per_chirp as u32
                 * num_chirps_per_frame as u32
-                * num_samples_per_chirp as u32,
+                * rx_antennas as u32,
             registers,
         }
     }
@@ -157,5 +157,4 @@ static uint32_t register_list_micro_only[] = {
 };
 
 #endif /* XENSIV_BGT60TRXX_CONF_MICRO_H */
-
- */
+*/

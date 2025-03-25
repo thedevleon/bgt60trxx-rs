@@ -163,6 +163,12 @@ where
         Ok(CHIP_ID::from(reg))
     }
 
+    pub async fn enable_test_mode(&mut self) -> Result<(), Error> {
+        let mut reg: SFCTL = self.read_register(Register::SFCTL).await?.into();
+        reg.set_lfsr_en(true);
+        self.write_register(Register::SFCTL, reg.into()).await
+    }
+
     pub async fn start(&mut self) -> Result<(), Error> {
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_frame_start(true);
@@ -255,5 +261,9 @@ where
             // buffer[0] will contain GSR0 (Global Status)
         }
         Ok(())
+    }
+
+    pub fn get_next_test_word(current: u16) -> u16 {
+        (current >> 1) | (((current << 11) ^ (current << 10) ^ (current << 9) ^ (current << 3)) & 0x0800)
     }
 }
