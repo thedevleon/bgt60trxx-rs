@@ -15,6 +15,7 @@ pub struct Config {
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rx_antennas: u8,
         tx_antennas: u8,
@@ -27,7 +28,6 @@ impl Config {
         chirp_repetition_time_s: f64,
         frame_repetition_time_s: f64,
         sample_rate_hz: u32,
-        fifo_limit: u32,
         registers: [u32; 38],
     ) -> Self {
         Config {
@@ -42,7 +42,9 @@ impl Config {
             chirp_repetition_time_s,
             frame_repetition_time_s,
             sample_rate_hz,
-            fifo_limit,
+            fifo_limit: rx_antennas as u32
+                * num_chirps_per_frame as u32
+                * num_samples_per_chirp as u32,
             registers,
         }
     }
@@ -50,20 +52,19 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Config {
-            rx_antennas: 3,
-            tx_antennas: 1,
-            tx_power_level: 31,
-            if_gain_db: 60,
-            lower_frequency_hz: 61020098000,
-            upper_frequency_hz: 61479902000,
-            num_chirps_per_frame: 16,
-            num_samples_per_chirp: 128,
-            chirp_repetition_time_s: 7e-05,
-            frame_repetition_time_s: 5e-3,
-            sample_rate_hz: 2330000,
-            fifo_limit: 6144, // rx_antennas*num_chirps_per_frame*num_samples_per_chirp,
-            registers: [
+        Config::new(
+            3,
+            1,
+            31,
+            60,
+            61020098000,
+            61479902000,
+            16,
+            128,
+            7e-05,
+            5e-3,
+            2330000,
+            [
                 0x11e8270, 0x3088210, 0x9e967fd, 0xb0805b4, 0xdf02fff, 0xf010700, 0x11000000,
                 0x13000000, 0x15000000, 0x17000be0, 0x19000000, 0x1b000000, 0x1d000000, 0x1f000b60,
                 0x21130c51, 0x234ff41f, 0x25006f7b, 0x2d000490, 0x3b000480, 0x49000480, 0x57000480,
@@ -71,7 +72,7 @@ impl Default for Config {
                 0x67000080, 0x69000000, 0x6b000000, 0x6d000000, 0x6f092910, 0x7f000100, 0x8f000100,
                 0x9f000100, 0xad000000, 0xb7000000,
             ],
-        }
+        )
     }
 }
 

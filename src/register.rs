@@ -210,6 +210,23 @@ pub struct FSTAT {
     __: usize,
 }
 
+#[bitfield(u32)]
+#[allow(non_camel_case_types)]
+pub struct BURST {  
+    #[bits(9)]
+    __: usize,
+    #[bits(7)]
+    pub nbursts: usize,
+    #[bits(1)]
+    pub rwb: bool,
+    #[bits(7)]
+    pub saddr: usize,
+    #[bits(1)]
+    pub rw: bool,
+    #[bits(7, default = 0x7F)]
+    pub addr: usize,
+}
+
 #[bitfield(u8)]
 #[allow(non_camel_case_types)]
 pub struct GSR0 {
