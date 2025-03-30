@@ -30,6 +30,7 @@ dependencies = [
  "bitfield-struct",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
+ "log",
 ]
 
 [[package]]

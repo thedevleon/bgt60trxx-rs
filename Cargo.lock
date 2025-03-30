@@ -9,6 +9,7 @@ dependencies = [
  "bitfield-struct",
  "embedded-hal",
  "embedded-hal-async",
+ "log",
 ]
 
 [[package]]
@@ -36,6 +37,12 @@ checksum = "0c4c685bbef7fe13c3c6dd4da26841ed3980ef33e841cddfa15ce8a8fb3f1884"
 dependencies = [
  "embedded-hal",
 ]
+
+[[package]]
+name = "log"
+version = "0.4.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "proc-macro2"
