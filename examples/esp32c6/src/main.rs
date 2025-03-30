@@ -35,12 +35,12 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
-    let sclk = peripherals.GPIO0;
-    let miso = peripherals.GPIO2;
-    let mosi = peripherals.GPIO4;
-    let cs = peripherals.GPIO5;
-    let rst = peripherals.GPIO6;
-    let irq = peripherals.GPIO7;
+    let sclk = peripherals.GPIO19;
+    let miso = peripherals.GPIO20;
+    let mosi = peripherals.GPIO18;
+    let cs = peripherals.GPIO17;
+    let rst = peripherals.GPIO21;
+    let irq = peripherals.GPIO16;
 
     let cs = Output::new(cs, Level::High, OutputConfig::default());
     let rst = Output::new(rst, Level::High, OutputConfig::default());
