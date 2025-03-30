@@ -23,7 +23,7 @@ esp-println = { version = "0.13.0", default-features = false, features = ["esp32
 embedded-hal-bus = { version = "0.3.0", features = ["async"] }
 log = { version = "0.4.21" }
 static_cell = { version = "2.1.0", features = ["nightly"] }
-bgt60trxx = { path = "../../", features = ["log"]}
+bgt60trxx = { path = "../../", features = ["debug"]}
 
 [profile.dev]
 # Rust debug is too slow.

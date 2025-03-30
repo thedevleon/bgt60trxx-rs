@@ -13,7 +13,7 @@ use embedded_hal_async::digital::Wait;
 use embedded_hal_async::spi::Error as SpiError;
 use embedded_hal_async::spi::SpiDevice;
 
-#[cfg(feature = "log")]
+#[cfg(feature = "debug")]
 use log::{debug, error, info, trace, warn};
 
 use config::Config;
@@ -290,8 +290,8 @@ where
         buffer[2] = ((burst_raw >> 8) & 0xFF) as u8;
         buffer[3] = burst_raw as u8;
 
-        #[cfg(feature = "log")]
-        info!("Burst command: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        #[cfg(feature = "debug")]
+        info!("Burst command: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         // The C implementation first sends the burst command, checks the returned GSR0, and then continues to burst read the data only if no error flags are set in GSR0
         // Since we don't have control over the CS line (which needs to stay low between burst command and burst read), we can't do that
@@ -308,16 +308,16 @@ where
     async fn read_register(&mut self, reg: Register) -> Result<u32, Error> {
         let mut buffer: [u8; 4] = [reg as u8 | READ_BIT, 0, 0, 0];
 
-        #[cfg(feature = "log")]
-        info!("Read register request: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        #[cfg(feature = "debug")]
+        info!("Read register {:#X} - {:#010b}", reg as u8, buffer[0]);
 
         self.spi
             .transfer_in_place(&mut buffer)
             .await
             .map_err(|e| Error::Spi(e.kind()))?;
 
-        #[cfg(feature = "log")]
-        info!("Read register response: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        #[cfg(feature = "debug")]
+        info!("Read register response: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {
@@ -336,16 +336,16 @@ where
             (data & 0xFF) as u8,
         ];
 
-        #[cfg(feature = "log")]
-        info!("Write register request: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        #[cfg(feature = "debug")]
+        info!("Write register request: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", reg as u8, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         self.spi
             .transfer_in_place(&mut buffer)
             .await
             .map_err(|e| Error::Spi(e.kind()))?;
 
-        #[cfg(feature = "log")]
-        info!("Write register response: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        #[cfg(feature = "debug")]
+        info!("Write register response: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {

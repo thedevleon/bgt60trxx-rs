@@ -15,7 +15,7 @@ keywords = ["bgt60tr13c", "bgt60utr11aip", "bgt60trxx", "bgt60tr", "radar", "60g
 categories = ["embedded", "no-std", "hardware-support", "asynchronous", "sensors"]
 
 [features]
-log = ["dep:log"]
+debug = ["dep:log"]
 
 [dependencies]
 embedded-hal-async = "1.0.0"

@@ -6,6 +6,7 @@ use bitfield_struct::bitfield;
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
 #[repr(u8)]
+#[derive(Debug, Clone, Copy)]
 pub enum Register {
     MAIN = 0x00,
     ADC0 = 0x01,
