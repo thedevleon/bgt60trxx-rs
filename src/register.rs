@@ -131,9 +131,9 @@ pub struct MAIN {
 #[allow(non_camel_case_types)]
 pub struct CHIP_ID {
     #[bits(8, access = RO)]
-    pub digital_id: usize,
-    #[bits(16, access = RO)]
     pub rf_id: usize,
+    #[bits(16, access = RO)]
+    pub digital_id: usize,
     #[bits(8)]
     __: usize,
 }
