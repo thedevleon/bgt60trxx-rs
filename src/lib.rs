@@ -151,15 +151,15 @@ where
 
         Ok(())
     }
-    /// Resets the hardware by pulling the reset pin low and then high again.
+    /// Resets the hardware by pulling the reset pin high (== reset) and then low (== normal operation).
     pub async fn reset_hw(&mut self) -> Result<(), Error> {
         self.delay.delay_ns(100).await; // T_CS_BRES = 100ns
         self.reset_pin
-            .set_low()
+            .set_high()
             .map_err(|e| Error::Gpio(e.kind()))?;
         self.delay.delay_ns(100).await; // T_RES = 100ns
         self.reset_pin
-            .set_high()
+            .set_low()
             .map_err(|e| Error::Gpio(e.kind()))?;
         self.delay.delay_ns(100).await; // T_CS_ARES = 100ns
         Ok(())
