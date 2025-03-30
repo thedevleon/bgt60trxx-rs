@@ -235,6 +235,12 @@ where
         Ok(())
     }
 
+    /// Reads a single frame from the FIFO.
+    pub async fn get_frame(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        // TODO: unpack and convert the data to a u16 array or ndarray
+        self.get_fifo_data(buffer).await
+    }
+
     // TODO: make this a stream
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
     /// The function will wait for the interrupt pin to be pulled high before reading the data.
