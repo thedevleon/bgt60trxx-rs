@@ -23,6 +23,7 @@ use register::{BURST, CHIP_ID, GSR0, MAIN, SFCTL};
 
 pub enum Variant {
     BGT60TR13C,
+    BGT60UTR13D, // basically the same as BGT60TR13C, but with a different chip ID?
     BGT60UTR11AIP,
 }
 
@@ -59,11 +60,21 @@ where
 
         this.reset_hw().await?;
 
+        // reset SFCTL register to default state
+        // let sfctl = SFCTL::default();
+        // this.write_register(Register::SFCTL, sfctl.into()).await?;
+
         let chip_id = this.get_chip_id().await?;
 
         match this.variant {
+            // 
             Variant::BGT60TR13C => {
-                if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
+                if chip_id.digital_id() != 3 && chip_id.rf_id() != 3  {
+                    return Err(Error::VariantMismatch);
+                }
+            }
+            Variant::BGT60UTR13D => {
+                if chip_id.digital_id() != 6 && (chip_id.rf_id() != 6 || chip_id.rf_id() != 11) {
                     return Err(Error::VariantMismatch);
                 }
             }
@@ -111,6 +122,11 @@ where
                     return Err(Error::FifoTooSmall(fifo_limit, 8192));
                 }
             }
+            Variant::BGT60UTR13D => {
+                if (fifo_limit / 2) > 8192 {
+                    return Err(Error::FifoTooSmall(fifo_limit, 8192));
+                }
+            }
             Variant::BGT60UTR11AIP => {
                 if (fifo_limit / 2) > 2048 {
                     return Err(Error::FifoTooSmall(fifo_limit, 2048));
@@ -153,13 +169,16 @@ where
     }
     /// Resets the hardware by pulling the reset pin high (== reset) and then low (== normal operation).
     pub async fn reset_hw(&mut self) -> Result<(), Error> {
-        self.delay.delay_ns(100).await; // T_CS_BRES = 100ns
         self.reset_pin
             .set_high()
             .map_err(|e| Error::Gpio(e.kind()))?;
-        self.delay.delay_ns(100).await; // T_RES = 100ns
+        self.delay.delay_ns(100).await; // T_CS_BRES = 100ns
         self.reset_pin
             .set_low()
+            .map_err(|e| Error::Gpio(e.kind()))?;
+        self.delay.delay_ns(100).await; // T_RES = 100ns
+        self.reset_pin
+            .set_high()
             .map_err(|e| Error::Gpio(e.kind()))?;
         self.delay.delay_ns(100).await; // T_CS_ARES = 100ns
         Ok(())
@@ -279,6 +298,7 @@ where
             .with_rw(true)
             .with_addr(match self.variant {
                 Variant::BGT60TR13C => register::Register::FIFO_TR13C as usize,
+                Variant::BGT60UTR13D => register::Register::FSTAT_UTR11_FIFO_UTR13D as usize,
                 Variant::BGT60UTR11AIP => register::Register::FIFO_UTR11 as usize,
             })
             .with_rwb(false)
@@ -291,7 +311,7 @@ where
         buffer[3] = burst_raw as u8;
 
         #[cfg(feature = "debug")]
-        info!("Burst command: {:#X}{:X}{:X}{:X} - {:#010b}{:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!("Burst command: {:#40X}{:02X}{:02X}{:02X} - {:#010b}{:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         // The C implementation first sends the burst command, checks the returned GSR0, and then continues to burst read the data only if no error flags are set in GSR0
         // Since we don't have control over the CS line (which needs to stay low between burst command and burst read), we can't do that
@@ -306,10 +326,10 @@ where
 
     // TODO: LE/BE conversion might be necessary
     async fn read_register(&mut self, reg: Register) -> Result<u32, Error> {
-        let mut buffer: [u8; 4] = [reg as u8 | READ_BIT, 0, 0, 0];
+        let mut buffer: [u8; 4] = [(reg as u8) << 1 | READ_BIT, 0, 0, 0];
 
         #[cfg(feature = "debug")]
-        info!("Read register {:#X} - {:#010b}", reg as u8, buffer[0]);
+        info!("Read register {:#04X} - {:#010b}", reg as u8, buffer[0]);
 
         self.spi
             .transfer_in_place(&mut buffer)
@@ -317,7 +337,7 @@ where
             .map_err(|e| Error::Spi(e.kind()))?;
 
         #[cfg(feature = "debug")]
-        info!("Read register response: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!("Read register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {
@@ -330,14 +350,14 @@ where
     // TODO: LE/BE conversion might be necessary
     async fn write_register(&mut self, reg: Register, data: u32) -> Result<(), Error> {
         let mut buffer: [u8; 4] = [
-            reg as u8 | WRITE_BIT,
+            (reg as u8) << 1 | WRITE_BIT,
             ((data >> 16) & 0xFF) as u8,
             ((data >> 8) & 0xFF) as u8,
             (data & 0xFF) as u8,
         ];
 
         #[cfg(feature = "debug")]
-        info!("Write register request: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", reg as u8, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!("Write register request: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", reg as u8, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         self.spi
             .transfer_in_place(&mut buffer)
@@ -345,7 +365,7 @@ where
             .map_err(|e| Error::Spi(e.kind()))?;
 
         #[cfg(feature = "debug")]
-        info!("Write register response: {:#X} {:X}{:X}{:X} - {:#010b} {:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!("Write register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {

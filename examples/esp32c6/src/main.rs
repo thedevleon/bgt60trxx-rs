@@ -35,12 +35,23 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
+    // Specific to KIT CSK BGT60TR13C
+    let led_r = peripherals.GPIO0;
+    let led_g = peripherals.GPIO1;
+    let led_b = peripherals.GPIO2;
+    let ldo_en = peripherals.GPIO15;
+
+    let mut led_r = Output::new(led_r, Level::Low, OutputConfig::default());
+    let mut led_g = Output::new(led_g, Level::Low, OutputConfig::default());
+    let mut led_b = Output::new(led_b, Level::Low, OutputConfig::default());
+    let mut ldo_en = Output::new(ldo_en, Level::Low, OutputConfig::default());
+
     let sclk = peripherals.GPIO19;
-    let miso = peripherals.GPIO20;
-    let mosi = peripherals.GPIO18;
-    let cs = peripherals.GPIO17;
-    let rst = peripherals.GPIO21;
-    let irq = peripherals.GPIO16;
+    let miso = peripherals.GPIO21;
+    let mosi = peripherals.GPIO20;
+    let cs = peripherals.GPIO9;
+    let rst = peripherals.GPIO11;
+    let irq = peripherals.GPIO10;
 
     let cs = Output::new(cs, Level::High, OutputConfig::default());
     let rst = Output::new(rst, Level::High, OutputConfig::default());
@@ -67,15 +78,20 @@ async fn main(spawner: Spawner) {
 
     let spi_device = ExclusiveDevice::new(spi_bus, cs, delay1).unwrap();
 
-    let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2).await.unwrap();
+    // Turn on the LDO
+    ldo_en.set_high();
+    Timer::after(Duration::from_millis(500)).await; // Wait for LDO to stabilize
+
+    // For some reason, the Kit has a BGT60UTR13D?
+    let mut radar = Radar::new(Variant::BGT60UTR13D, spi_device, rst, irq, delay2).await.unwrap();
     info!("Radar initialized!");
 
     // let config = RadarConfig::default();
     // radar.configure(config).await.unwrap();
     // info!("Radar configured!");
 
-    // // TODO: Spawn some tasks
-    // let _ = spawner;
+    // TODO: Spawn some tasks
+    let _ = spawner;
 
     // radar.enable_test_mode().await.unwrap();
     // radar.start().await.unwrap();

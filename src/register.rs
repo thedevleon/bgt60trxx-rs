@@ -93,9 +93,9 @@ pub enum Register {
     PLL_DFT0 = 0x59,
     STAT0 = 0x5D,
     SADC_RESULT = 0x5E,
-    FSTAT_TR13C = 0x5F,
+    FSTAT_TR13C_UTR13D = 0x5F,
     FIFO_TR13C = 0x60,
-    FSTAT_UTR11 = 0x63,
+    FSTAT_UTR11_FIFO_UTR13D = 0x63, // Really unfortunate clash...
     FIFO_UTR11 = 0x64
 }
 
@@ -245,6 +245,6 @@ pub struct GSR0 {
 
 impl GSR0 {
     pub fn has_error(&self) -> bool {
-        self.clock_number_error() || self.spi_burst_error() || self.fou_err()
+        self.clock_number_error() || self.spi_burst_error() // || self.fou_err()
     }
 }
