@@ -93,9 +93,9 @@ pub enum Register {
     PLL_DFT0 = 0x59,
     STAT0 = 0x5D,
     SADC_RESULT = 0x5E,
-    FSTAT_TR13C_UTR13D = 0x5F,
+    FSTAT_TR13C = 0x5F,
     FIFO_TR13C = 0x60,
-    FSTAT_UTR11_FIFO_UTR13D = 0x63, // Really unfortunate clash...
+    FSTAT_UTR11 = 0x63,
     FIFO_UTR11 = 0x64
 }
 
@@ -104,11 +104,11 @@ pub enum Register {
 pub struct MAIN {
     #[bits(1, access = WO)]
     pub frame_start: bool,
-    #[bits(1, access = WO)]
+    #[bits(1)]
     pub sw_reset: bool,
-    #[bits(1, access = WO)]
+    #[bits(1)]
     pub fsm_reset: bool,
-    #[bits(1, access = WO)]
+    #[bits(1)]
     pub fifo_reset: bool,
     #[bits(8)]
     pub tr_wkup: usize,

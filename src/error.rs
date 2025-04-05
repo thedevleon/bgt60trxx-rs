@@ -14,6 +14,7 @@ pub enum Error {
     FifoTooSmall(u32, u32),
     BufferWrongSize(usize, usize),
     GlobalStatusRegisterError(GSR0),
+    ResetError
 }
 
 impl Display for Error
@@ -28,6 +29,7 @@ impl Display for Error
             Error::NotAPowerOfTwo => write!(f, "Value is not a power of two"),
             Error::BufferWrongSize(provided, expected) => write!(f, "Buffer wrong size, provided: {}, expected: {}", provided, expected),
             Error::GlobalStatusRegisterError(gsr0) => write!(f, "Global status register error: {:?}", gsr0),
+            Error::ResetError => write!(f, "Unable to perform reset."),
         }
     }
 }

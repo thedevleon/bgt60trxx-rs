@@ -86,7 +86,7 @@ impl core::fmt::Display for Config {
             \t frame_repetition_time_hz: {:.2e},\n\
             \t frame_shape: {:?},\n\
             \t frame_buffer_size_u12: {},\n\
-            \t frame_buffer_size_u8: {}\n\
+            \t frame_buffer_size_u8: {} + 4\n\
             \t registers: {:?},\n\
             }}",
             self.rx_antennas,

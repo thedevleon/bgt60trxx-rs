@@ -23,7 +23,7 @@ use register::{BURST, CHIP_ID, GSR0, MAIN, SFCTL};
 
 pub enum Variant {
     BGT60TR13C,
-    BGT60UTR13D, // basically the same as BGT60TR13C, but with a different chip ID?
+    // BGT60UTR13D has been omitted
     BGT60UTR11AIP,
 }
 
@@ -36,8 +36,8 @@ pub struct Radar<SPI, RST, IRQ, DLY> {
     config: Option<Config>,
 }
 
-const READ_BIT: u8 = 0 << 7;
-const WRITE_BIT: u8 = 1 << 7;
+const READ_BIT: u8 = 0;
+const WRITE_BIT: u8 = 1;
 
 impl<SPI, RST, IRQ, DLY> Radar<SPI, RST, IRQ, DLY>
 where
@@ -46,9 +46,14 @@ where
     IRQ: Wait,
     DLY: DelayNs,
 {
-    
     /// Initializes the radar by performing a hardware reset and checking that the chip ID matches the expected variant.
-    pub async fn new(variant: Variant, spi: SPI, reset_pin: RST, interrupt_pin: IRQ, delay: DLY) -> Result<Self, Error> {
+    pub async fn new(
+        variant: Variant,
+        spi: SPI,
+        reset_pin: RST,
+        interrupt_pin: IRQ,
+        delay: DLY,
+    ) -> Result<Self, Error> {
         let mut this = Radar {
             spi,
             reset_pin,
@@ -61,20 +66,15 @@ where
         this.reset_hw().await?;
 
         // reset SFCTL register to default state
-        // let sfctl = SFCTL::default();
-        // this.write_register(Register::SFCTL, sfctl.into()).await?;
+        let sfctl = SFCTL::default();
+        this.write_register(Register::SFCTL, sfctl.into()).await?;
 
         let chip_id = this.get_chip_id().await?;
 
         match this.variant {
-            // 
+            //
             Variant::BGT60TR13C => {
-                if chip_id.digital_id() != 3 && chip_id.rf_id() != 3  {
-                    return Err(Error::VariantMismatch);
-                }
-            }
-            Variant::BGT60UTR13D => {
-                if chip_id.digital_id() != 6 && (chip_id.rf_id() != 6 || chip_id.rf_id() != 11) {
+                if chip_id.digital_id() != 3 && chip_id.rf_id() != 3 {
                     return Err(Error::VariantMismatch);
                 }
             }
@@ -122,11 +122,6 @@ where
                     return Err(Error::FifoTooSmall(fifo_limit, 8192));
                 }
             }
-            Variant::BGT60UTR13D => {
-                if (fifo_limit / 2) > 8192 {
-                    return Err(Error::FifoTooSmall(fifo_limit, 8192));
-                }
-            }
             Variant::BGT60UTR11AIP => {
                 if (fifo_limit / 2) > 2048 {
                     return Err(Error::FifoTooSmall(fifo_limit, 2048));
@@ -140,17 +135,32 @@ where
         // Write registers
         // TODO: Parse the register address and convert to the enum so that we can just use self.write_register(reg, data)
         for reg in config.registers {
+            let addr = ((reg & 0xFE000000) >> 25) as u8;
+            let data = (reg & 0x00FFFFFF) >> 0;
+
             let mut buffer: [u8; 4] = [
-                (((reg >> 24) & 0xFF) as u8 | WRITE_BIT),
-                ((reg >> 16) & 0xFF) as u8,
-                ((reg >> 8) & 0xFF) as u8,
-                (reg & 0xFF) as u8,
+                (addr as u8) << 1 | WRITE_BIT,
+                ((data >> 16) & 0xFF) as u8,
+                ((data >> 8) & 0xFF) as u8,
+                (data & 0xFF) as u8,
             ];
+
+            #[cfg(feature = "debug")]
+            info!(
+                "Write CONFIG register request:  {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
+                addr, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+            );
 
             self.spi
                 .transfer_in_place(&mut buffer)
                 .await
                 .map_err(|e| Error::Spi(e.kind()))?;
+
+            #[cfg(feature = "debug")]
+            info!(
+                "Write CONFIG register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
+                buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+            );
 
             let gsr0 = GSR0::from(buffer[0]);
             if gsr0.has_error() {
@@ -194,8 +204,30 @@ where
         let mut reg: MAIN = self.read_register(Register::MAIN).await?.into();
         reg.set_sw_reset(true);
         self.write_register(Register::MAIN, reg.into()).await?;
-        // TODO read register until SW_RESET is 0 again
-        self.delay.delay_ns(100).await; // A delay of 100ns is necessary after a SW reset
+
+        // A delay of 100ns is necessary after a SW reset
+        self.delay.delay_ns(100).await; 
+
+        // Check if the reset was successful by reading the register again until the sw_reset bit is cleared
+        // 5 tries should be enough, right? 
+        for n in 0..5 {
+            let reg = self.read_register(Register::MAIN).await;
+
+            if let Ok(reg) = reg {
+                let main: MAIN = reg.into();
+                if main.sw_reset() == false {
+                    break;
+                }
+            } else if n == 4 {
+                return Err(Error::ResetError);
+            } else {
+                self.delay.delay_ms(10).await; // wait 10ms before trying again
+            }
+        }
+
+        // A final delay of 10ms is present in the C SDK
+        self.delay.delay_ms(10).await;
+
         Ok(())
     }
 
@@ -266,12 +298,12 @@ where
     // TODO: make this a stream
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
     /// The function will wait for the interrupt pin to be pulled high before reading the data.
-    /// 
+    ///
     /// The buffer must be the correct size to hold a single frame.
     /// The size of the buffer can be calculated with the formula:
-    /// 
+    ///
     /// `buffer_size = (num_samples_per_chirp * num_chirps_per_frame * rx_antennas * 12) / 8`
-    /// 
+    ///
     pub async fn get_fifo_data(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
 
@@ -280,7 +312,7 @@ where
         let fifo_limit = config.num_samples_per_chirp as u32
             * config.num_chirps_per_frame as u32
             * config.rx_antennas as u32;
-        let needed_buffer_size = (fifo_limit as usize * 12) / 8;
+        let needed_buffer_size = ((fifo_limit as usize * 12) / 8) + 4; // 4 bytes for the burst command / GSR0 + padding
         if buffer.len() != needed_buffer_size {
             return Err(Error::BufferWrongSize(buffer.len(), needed_buffer_size));
         }
@@ -296,9 +328,8 @@ where
         let burst = BURST::new()
             .with_addr(0x7F)
             .with_rw(true)
-            .with_addr(match self.variant {
+            .with_saddr(match self.variant {
                 Variant::BGT60TR13C => register::Register::FIFO_TR13C as usize,
-                Variant::BGT60UTR13D => register::Register::FSTAT_UTR11_FIFO_UTR13D as usize,
                 Variant::BGT60UTR11AIP => register::Register::FIFO_UTR11 as usize,
             })
             .with_rwb(false)
@@ -311,7 +342,10 @@ where
         buffer[3] = burst_raw as u8;
 
         #[cfg(feature = "debug")]
-        info!("Burst command: {:#40X}{:02X}{:02X}{:02X} - {:#010b}{:08b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!(
+            "Burst command: {:#04X}{:02X}{:02X}{:02X} - {:#010b}{:08b}{:08b}{:08b}",
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+        );
 
         // The C implementation first sends the burst command, checks the returned GSR0, and then continues to burst read the data only if no error flags are set in GSR0
         // Since we don't have control over the CS line (which needs to stay low between burst command and burst read), we can't do that
@@ -319,9 +353,16 @@ where
         self.spi
             .transfer_in_place(buffer)
             .await
-            .map_err(|e| Error::Spi(e.kind()))
+            .map_err(|e| Error::Spi(e.kind()))?;
 
-        // TODO use an ndarray instead of a u8 buffer and correctly unpack the 24-bit data blocks into 1, 2 or 3 12-bit ADC channels depending on the number of active RX antennas
+
+        // We could however check the GSR0 after the burst read
+        let gsr0 = GSR0::from(buffer[0]); 
+        if gsr0.has_error() {
+            return Err(Error::GlobalStatusRegisterError(gsr0));
+        } 
+
+        Ok(())
     }
 
     // TODO: LE/BE conversion might be necessary
@@ -337,7 +378,10 @@ where
             .map_err(|e| Error::Spi(e.kind()))?;
 
         #[cfg(feature = "debug")]
-        info!("Read register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!(
+            "Read register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+        );
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {
@@ -357,7 +401,10 @@ where
         ];
 
         #[cfg(feature = "debug")]
-        info!("Write register request: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", reg as u8, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!(
+            "Write register request:  {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
+            reg as u8, buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+        );
 
         self.spi
             .transfer_in_place(&mut buffer)
@@ -365,7 +412,10 @@ where
             .map_err(|e| Error::Spi(e.kind()))?;
 
         #[cfg(feature = "debug")]
-        info!("Write register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}", buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]);
+        info!(
+            "Write register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+        );
 
         let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() {
@@ -377,7 +427,7 @@ where
 }
 
 /// Generates the next test word based on the current word.
-/// 
+///
 /// To be used in conjunction with [`Self::enable_test_mode()`].
 pub fn get_next_test_word(current: u16) -> u16 {
     (current >> 1)

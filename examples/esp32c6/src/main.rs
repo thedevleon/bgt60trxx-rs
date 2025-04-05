@@ -82,30 +82,32 @@ async fn main(spawner: Spawner) {
     ldo_en.set_high();
     Timer::after(Duration::from_millis(500)).await; // Wait for LDO to stabilize
 
-    // For some reason, the Kit has a BGT60UTR13D?
-    let mut radar = Radar::new(Variant::BGT60UTR13D, spi_device, rst, irq, delay2).await.unwrap();
+    let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2).await.unwrap();
     info!("Radar initialized!");
 
-    // let config = RadarConfig::default();
-    // radar.configure(config).await.unwrap();
-    // info!("Radar configured!");
+    let config = RadarConfig::default();
+
+    info!("Configuring radar with: {}", config);
+
+    radar.configure(config).await.unwrap();
+    info!("Radar configured!");
 
     // TODO: Spawn some tasks
     let _ = spawner;
 
-    // radar.enable_test_mode().await.unwrap();
-    // radar.start().await.unwrap();
+    radar.enable_test_mode().await.unwrap();
+    radar.start().await.unwrap();
 
-    // let mut buffer = [0u8; 9216];
-    // let mut test_word = 0x0001u16;
+    let mut buffer = [0u8; 192+4];
+    let mut test_word = 0x0001u16;
 
-    // loop {
-    //     radar.get_fifo_data(&mut buffer).await.unwrap();
+    loop {
+        radar.get_fifo_data(&mut buffer).await.unwrap();
 
-    //     // TODO map from u8 to u12 to u16
-    //     // TODO verify test pattern
+        // TODO map from u8 to u12 to u16
+        // TODO verify test pattern
 
-    //     test_word = bgt60trxx::get_next_test_word(test_word);
+        test_word = bgt60trxx::get_next_test_word(test_word);
 
-    // }
+    }
 }
