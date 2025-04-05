@@ -356,9 +356,9 @@ where
             .map_err(|e| Error::Spi(e.kind()))?;
 
 
-        // We could however check the GSR0 after the burst read
+        // We can however check the GSR0 after the burst read
         let gsr0 = GSR0::from(buffer[0]); 
-        if gsr0.has_error() {
+        if gsr0.has_error() || gsr0.fou_err() {
             return Err(Error::GlobalStatusRegisterError(gsr0));
         } 
 

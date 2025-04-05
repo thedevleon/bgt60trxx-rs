@@ -245,6 +245,6 @@ pub struct GSR0 {
 
 impl GSR0 {
     pub fn has_error(&self) -> bool {
-        self.clock_number_error() || self.spi_burst_error() // || self.fou_err()
+        self.clock_number_error() || self.spi_burst_error() // || self.fou_err() // fou is also set when the FIFO is empty, so we don't check it here, only in the burst read
     }
 }
