@@ -49,11 +49,11 @@ info!("Radar frame generation started!");
 
 // See buffer size calucation in config::Config and add 4 bytes for initial burst command
 let mut buffer = [0u8; 192+4];
+let mut output = [0u16; 128];
 
 loop {
-    radar.get_fifo_data(&mut buffer).await.unwrap();
-
-    // TODO: process fifo data
+    radar.get_fifo_data(&mut buffer, &mut output).await.unwrap();
+    // TODO: process fifo data in output buffer
 }
 ```
 

@@ -6,6 +6,7 @@ pub mod config;
 pub mod error;
 pub mod register;
 
+use bitvec::prelude::*;
 use embedded_hal::digital::Error as DigitalError;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::delay::DelayNs;
@@ -145,6 +146,8 @@ where
                 (data & 0xFF) as u8,
             ];
 
+            // TODO if register is SFCTL, disable MISO_HD_RD
+
             #[cfg(feature = "debug")]
             info!(
                 "Write CONFIG register request:  {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
@@ -159,7 +162,14 @@ where
             #[cfg(feature = "debug")]
             info!(
                 "Write CONFIG register response: {:#04X} {:#04X}{:02X}{:02X} - {:#010b} {:#010b}{:08b}{:08b}",
-                buffer[0], buffer[1], buffer[2], buffer[3], buffer[0], buffer[1], buffer[2], buffer[3]
+                buffer[0],
+                buffer[1],
+                buffer[2],
+                buffer[3],
+                buffer[0],
+                buffer[1],
+                buffer[2],
+                buffer[3]
             );
 
             let gsr0 = GSR0::from(buffer[0]);
@@ -206,10 +216,10 @@ where
         self.write_register(Register::MAIN, reg.into()).await?;
 
         // A delay of 100ns is necessary after a SW reset
-        self.delay.delay_ns(100).await; 
+        self.delay.delay_ns(100).await;
 
         // Check if the reset was successful by reading the register again until the sw_reset bit is cleared
-        // 5 tries should be enough, right? 
+        // 5 tries should be enough, right?
         for n in 0..5 {
             let reg = self.read_register(Register::MAIN).await;
 
@@ -289,13 +299,30 @@ where
         Ok(())
     }
 
-    /// Reads a single frame from the FIFO.
-    pub async fn get_frame(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
-        // TODO: unpack and convert the data to a u16 array or ndarray
-        self.get_fifo_data(buffer).await
+    /// Reads a single frame from the FIFO and converts it to an ndarray with the correct shape.
+    pub async fn get_frame(&mut self) -> Result<(), Error> {
+        let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
+
+        // self.get_fifo_data(&mut buffer, &mut output).await?;
+
+        match config.rx_antennas {
+            1 => {
+                // TODO
+            }
+            2 => {
+                // TODO
+            }
+            3 => {
+                // TODO
+            }
+            _ => {
+                // this should never be reached
+            }
+        }
+
+        Ok(())
     }
 
-    // TODO: make this a stream
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
     /// The function will wait for the interrupt pin to be pulled high before reading the data.
     ///
@@ -303,8 +330,13 @@ where
     /// The size of the buffer can be calculated with the formula:
     ///
     /// `buffer_size = (num_samples_per_chirp * num_chirps_per_frame * rx_antennas * 12) / 8`
+    /// `output_size = num_samples_per_chirp * num_chirps_per_frame * rx_antennas`
     ///
-    pub async fn get_fifo_data(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+    pub async fn get_fifo_data(
+        &mut self,
+        buffer: &mut [u8],
+        output: &mut [u16],
+    ) -> Result<(), Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
 
         // ADC results are 12-bits, and two ADC results are packed into one 24-bit data block
@@ -315,6 +347,9 @@ where
         let needed_buffer_size = ((fifo_limit as usize * 12) / 8) + 4; // 4 bytes for the burst command / GSR0 + padding
         if buffer.len() != needed_buffer_size {
             return Err(Error::BufferWrongSize(buffer.len(), needed_buffer_size));
+        }
+        if output.len() != fifo_limit as usize {
+            return Err(Error::OutputWrongSize(output.len(), fifo_limit as usize));
         }
 
         self.interrupt_pin
@@ -355,12 +390,19 @@ where
             .await
             .map_err(|e| Error::Spi(e.kind()))?;
 
-
         // We can however check the GSR0 after the burst read
-        let gsr0 = GSR0::from(buffer[0]); 
+        let gsr0 = GSR0::from(buffer[0]);
         if gsr0.has_error() || gsr0.fou_err() {
             return Err(Error::GlobalStatusRegisterError(gsr0));
-        } 
+        }
+
+        // Unpack the raw buffer into the output buffer, converting from 12-bit to 16-bit
+        let raw_bits = buffer[4..].view_bits::<Msb0>();
+        let adc_results = raw_bits.chunks(12);
+        for (i, chunk) in adc_results.enumerate() {
+            let result: u16 = chunk.load();
+            output[i] = result;
+        }  
 
         Ok(())
     }

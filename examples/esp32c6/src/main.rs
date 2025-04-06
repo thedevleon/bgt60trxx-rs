@@ -100,15 +100,20 @@ async fn main(spawner: Spawner) {
     info!("Radar frame generation started!");
 
     let mut buffer = [0u8; 192+4];
+    let mut output = [0u16; 128];
+
     let mut test_word = 0x0001u16;
+    let mut output_test = [0u16; 128];
 
     loop {
-        radar.get_fifo_data(&mut buffer).await.unwrap();
+        radar.get_fifo_data(&mut buffer, &mut output).await.unwrap();
 
-        // TODO map from u8 to u12 to u16
-        // TODO verify test pattern
+        for i in 0..128 {
+            output_test[i] = test_word;
+            test_word = bgt60trxx::get_next_test_word(test_word);
+        }
 
-        test_word = bgt60trxx::get_next_test_word(test_word);
-
+        info!("Output: {:?}", output);
+        info!("Output test: {:?}", output_test);
     }
 }
