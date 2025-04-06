@@ -397,12 +397,25 @@ where
         }
 
         // Unpack the raw buffer into the output buffer, converting from 12-bit to 16-bit
-        let raw_bits = buffer[4..].view_bits::<Msb0>();
-        let adc_results = raw_bits.chunks(12);
-        for (i, chunk) in adc_results.enumerate() {
-            let result: u16 = chunk.load();
-            output[i] = result;
-        }  
+        let buffer_view = &buffer[4..]; // skip the first 4 bytes, which are the burst command and GSR0
+        for i in 0..fifo_limit as usize {
+            let index = (i * 12) / 8; // this will round down
+            let odd = i % 2 == 0; // odd means the data starts in the middle of the block, even means it starts at the beginning
+            let value: u16;
+
+            if odd {
+                // the first value we only need to shift 4 bits to the left
+                // the second value needs to be shifted 4 bits to the right to shift out the adjacent next value
+                value = ((buffer_view[index] as u16) << 4) | ((buffer_view[index + 1] as u16) >> 4);
+            }               
+            else {
+                // the first value we need to ignore the first 4 bits, and shift the remaining 4 bits 8 bits to the left
+                // the second value we can take as is
+                value = ((buffer_view[index] as u16) & 0x0F) << 8 | (buffer_view[index + 1] as u16);
+            }
+
+            output[i] = value;
+        }
 
         Ok(())
     }

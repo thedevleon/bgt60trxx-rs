@@ -104,6 +104,7 @@ async fn main(spawner: Spawner) {
 
     let mut test_word = 0x0001u16;
     let mut output_test = [0u16; 128];
+    let mut error = false;
 
     loop {
         radar.get_fifo_data(&mut buffer, &mut output).await.unwrap();
@@ -113,7 +114,24 @@ async fn main(spawner: Spawner) {
             test_word = bgt60trxx::get_next_test_word(test_word);
         }
 
-        info!("Output: {:?}", output);
-        info!("Output test: {:?}", output_test);
+        // Check if the output matches the test word
+        for i in 0..128 {
+            if output[i] != output_test[i] {
+                info!("Output mismatch at index {}: expected {}, got {}", i, output_test[i], output[i]);
+                error = true;
+            }
+        }
+
+        if error {
+            info!("Mismatch in test data!");
+            led_r.set_high();
+            led_g.set_low();
+            led_b.set_low();
+        } else {
+            info!("Frame correctly received!");
+            led_r.set_low();
+            led_g.set_high();
+            led_b.set_low();
+        }
     }
 }
