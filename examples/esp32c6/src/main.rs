@@ -97,6 +97,7 @@ async fn main(spawner: Spawner) {
 
     radar.enable_test_mode().await.unwrap();
     radar.start().await.unwrap();
+    info!("Radar frame generation started!");
 
     let mut buffer = [0u8; 192+4];
     let mut test_word = 0x0001u16;

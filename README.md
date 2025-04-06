@@ -24,19 +24,15 @@ An async and no_std rust library to interface via SPI with the XENSIV™ BGT60TR
 ```rust
 use bgt60trxx::{Radar, Variant, config::Config as RadarConfig};
 
-let sclk = peripherals.GPIO19;
-let miso = peripherals.GPIO21;
-let mosi = peripherals.GPIO20;
-let cs = peripherals.GPIO9;
-let rst = peripherals.GPIO11;
-let irq = peripherals.GPIO10;
-
-let cs = Output::new(cs, Level::High, OutputConfig::default());
-let rst = Output::new(rst, Level::High, OutputConfig::default());
-let irq = Input::new(irq, InputConfig::default());
+// let sclk = ...
+// let miso = ...
+// let mosi = ...
+// let cs = ...
+// let rst = ...
+// let irq = ...
 
 // let spi_bus = ...
-// let spi_device = ... (see embedded-hal-bus, i.e. ExclusiveDevice)
+// let spi_device = ... (see embedded-hal-bus, e.g. ExclusiveDevice)
 // let delay = ...
 
 let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay).await.unwrap();
@@ -49,7 +45,9 @@ radar.configure(config).await.unwrap();
 info!("Radar configured!");
 
 radar.start().await.unwrap();
+info!("Radar frame generation started!");
 
+// See buffer size calucation in config::Config and add 4 bytes for initial burst command
 let mut buffer = [0u8; 192+4];
 
 loop {
@@ -83,9 +81,10 @@ To generate a new config, use the below JSON template (taken from https://github
 }
 ```
 
-This will generate a C header file with defines and a list of registers, which you can use to construct a config struct, see [`Config::high_framerate_preset()`](./src/config.rs).
+This will generate a C header file with defines and a list of registers, which you can use to construct a config struct, see `Config::high_framerate_preset()`.
 
-Note: The `bgt60-configurator-cli` has a bug where `XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS` is fixed to 1, even when the input says 3.
+Note: The `bgt60-configurator-cli` has a bug where `XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS` is fixed to 1, even when the JSON config says 3.
+Make sure to keep `rx_antennas` as 3 if that is the case.
 
 
 ## Modules
