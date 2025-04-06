@@ -6,7 +6,6 @@ pub mod config;
 pub mod error;
 pub mod register;
 
-use bitvec::prelude::*;
 use embedded_hal::digital::Error as DigitalError;
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::delay::DelayNs;
@@ -299,30 +298,6 @@ where
         Ok(())
     }
 
-    /// Reads a single frame from the FIFO and converts it to an ndarray with the correct shape.
-    pub async fn get_frame(&mut self) -> Result<(), Error> {
-        let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
-
-        // self.get_fifo_data(&mut buffer, &mut output).await?;
-
-        match config.rx_antennas {
-            1 => {
-                // TODO
-            }
-            2 => {
-                // TODO
-            }
-            3 => {
-                // TODO
-            }
-            _ => {
-                // this should never be reached
-            }
-        }
-
-        Ok(())
-    }
-
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
     /// The function will wait for the interrupt pin to be pulled high before reading the data.
     ///
@@ -398,23 +373,22 @@ where
 
         // Unpack the raw buffer into the output buffer, converting from 12-bit to 16-bit
         let buffer_view = &buffer[4..]; // skip the first 4 bytes, which are the burst command and GSR0
-        for i in 0..fifo_limit as usize {
+        for (i, result) in output.iter_mut().enumerate() {
             let index = (i * 12) / 8; // this will round down
             let odd = i % 2 == 0; // odd means the data starts in the middle of the block, even means it starts at the beginning
-            let value: u16;
 
-            if odd {
+            let value: u16 = if odd {
                 // the first value we only need to shift 4 bits to the left
                 // the second value needs to be shifted 4 bits to the right to shift out the adjacent next value
-                value = ((buffer_view[index] as u16) << 4) | ((buffer_view[index + 1] as u16) >> 4);
+                ((buffer_view[index] as u16) << 4) | ((buffer_view[index + 1] as u16) >> 4)
             }               
             else {
                 // the first value we need to ignore the first 4 bits, and shift the remaining 4 bits 8 bits to the left
                 // the second value we can take as is
-                value = ((buffer_view[index] as u16) & 0x0F) << 8 | (buffer_view[index + 1] as u16);
-            }
+                (((buffer_view[index] as u16) & 0x0F) << 8) | (buffer_view[index + 1] as u16)
+            };
 
-            output[i] = value;
+            *result = value;
         }
 
         Ok(())

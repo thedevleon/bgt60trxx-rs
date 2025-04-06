@@ -58,7 +58,7 @@ loop {
 ```
 
 ## Generating a new config
-To generate a new config, use the below JSON template (taken from https://github.com/Infineon/sensor-xensiv-bgt60trxx), adjust it accordingly, and run it through bgt60-configurator-cli:
+To generate a new config, use the below JSON template (taken from <https://github.com/Infineon/sensor-xensiv-bgt60trxx>), adjust it accordingly, and run it through bgt60-configurator-cli:
 `./bgt60-configurator-cli -c settings.json -o settings.h`
 
 ```json
