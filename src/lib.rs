@@ -136,10 +136,10 @@ where
         // TODO: Parse the register address and convert to the enum so that we can just use self.write_register(reg, data)
         for reg in config.registers {
             let addr = ((reg & 0xFE000000) >> 25) as u8;
-            let data = (reg & 0x00FFFFFF) >> 0;
+            let data = reg & 0x00FFFFFF;
 
             let mut buffer: [u8; 4] = [
-                (addr as u8) << 1 | WRITE_BIT,
+                (addr << 1) | WRITE_BIT,
                 ((data >> 16) & 0xFF) as u8,
                 ((data >> 8) & 0xFF) as u8,
                 (data & 0xFF) as u8,
@@ -215,7 +215,7 @@ where
 
             if let Ok(reg) = reg {
                 let main: MAIN = reg.into();
-                if main.sw_reset() == false {
+                if !main.sw_reset() {
                     break;
                 }
             } else if n == 4 {
@@ -266,7 +266,7 @@ where
 
     /// Enables a test mode, which will fill the FIFO with a test pattern after the start command.
     ///
-    /// The test pattern can be verified with the [`Self::get_next_test_word()`] method.
+    /// The test pattern can be verified with the [`crate::get_next_test_word()`] method.
     pub async fn enable_test_mode(&mut self) -> Result<(), Error> {
         let mut reg: SFCTL = self.read_register(Register::SFCTL).await?.into();
         reg.set_lfsr_en(true);
@@ -367,7 +367,7 @@ where
 
     // TODO: LE/BE conversion might be necessary
     async fn read_register(&mut self, reg: Register) -> Result<u32, Error> {
-        let mut buffer: [u8; 4] = [(reg as u8) << 1 | READ_BIT, 0, 0, 0];
+        let mut buffer: [u8; 4] = [((reg as u8) << 1) | READ_BIT, 0, 0, 0];
 
         #[cfg(feature = "debug")]
         info!("Read register {:#04X} - {:#010b}", reg as u8, buffer[0]);
@@ -394,7 +394,7 @@ where
     // TODO: LE/BE conversion might be necessary
     async fn write_register(&mut self, reg: Register, data: u32) -> Result<(), Error> {
         let mut buffer: [u8; 4] = [
-            (reg as u8) << 1 | WRITE_BIT,
+            ((reg as u8) << 1) | WRITE_BIT,
             ((data >> 16) & 0xFF) as u8,
             ((data >> 8) & 0xFF) as u8,
             (data & 0xFF) as u8,
@@ -428,7 +428,7 @@ where
 
 /// Generates the next test word based on the current word.
 ///
-/// To be used in conjunction with [`Self::enable_test_mode()`].
+/// To be used in conjunction with [`Radar::enable_test_mode()`].
 pub fn get_next_test_word(current: u16) -> u16 {
     (current >> 1)
         | (((current << 11) ^ (current << 10) ^ (current << 9) ^ (current << 3)) & 0x0800)
