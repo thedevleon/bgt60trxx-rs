@@ -11,8 +11,8 @@ documentation = "https://docs.rs/bgt60trxx"
 repository = "https://github.com/thedevleon/bgt60trxx-rs"
 readme = "README.md"
 
-keywords = ["bgt60tr13c", "bgt60utr11aip", "bgt60trxx", "bgt60tr", "radar", "60ghz", "fmcw", "infineon", "xensiv"]
-categories = ["embedded", "no-std", "hardware-support", "asynchronous", "sensors"]
+keywords = ["bgt60tr13c", "bgt60utr11aip", "radar", "60ghz", "fmcw"]
+categories = ["embedded", "no-std", "hardware-support", "asynchronous"]
 
 exclude = [
     "datasheet/*",
