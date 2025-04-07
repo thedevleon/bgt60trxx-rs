@@ -14,7 +14,16 @@ use embedded_hal_async::spi::Error as SpiError;
 use embedded_hal_async::spi::SpiDevice;
 
 #[cfg(feature = "debug")]
-use log::{debug, error, info, trace, warn};
+use log::info;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::vec;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "alloc")]
+use ndarray::prelude::*;
 
 use config::Config;
 use error::Error;
@@ -105,9 +114,7 @@ where
     pub async fn configure(&mut self, config: Config) -> Result<(), Error> {
         // TODO checks we might want to do on the config (i.e. if RX antennas match the variant)
 
-        let fifo_limit: u32 = config.num_samples_per_chirp as u32
-            * config.num_chirps_per_frame as u32
-            * config.rx_antennas as u32;
+        let fifo_limit = config.get_fifo_limit() as u32;
 
         // Check if limit is a power of two
         if fifo_limit % 2 != 0 {
@@ -186,6 +193,7 @@ where
 
         Ok(())
     }
+
     /// Resets the hardware by pulling the reset pin high (== reset) and then low (== normal operation).
     pub async fn reset_hw(&mut self) -> Result<(), Error> {
         self.reset_pin
@@ -298,6 +306,30 @@ where
         Ok(())
     }
 
+    /// Gets the frame(s) from the FIFO and returns them as a 3D array.
+    /// 
+    /// This function requires the alloc feature, since it dynamically allocates memory for the frames.
+    /// The frames are returned as a 3D array with the shape (rx_antennas, num_chirps_per_frame, num_samples_per_chirp).
+    #[cfg(feature = "alloc")]
+    pub async fn get_frame(&mut self) -> Result<Array3<u16>, Error> {
+        let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
+
+        let shape = (
+            config.rx_antennas as usize, 
+            config.num_chirps_per_frame as usize, 
+            config.num_samples_per_chirp as usize
+        );
+     
+        let mut frames = Array::zeros(shape); // This assumes C-style ordering (row-major), which is the default for ndarray
+        let needed_buffer_size = config.get_u8_buffer_size();
+        let mut buffer: Vec<u8> = vec![0u8; needed_buffer_size];
+        let mut output_view = frames.as_slice_mut().unwrap();
+        self.get_fifo_data(&mut buffer, &mut output_view).await?;
+        
+        // Return the allocated array
+        Ok(frames)
+    }
+
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
     /// The function will wait for the interrupt pin to be pulled high before reading the data.
     ///
@@ -313,13 +345,10 @@ where
         output: &mut [u16],
     ) -> Result<(), Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
-
-        // ADC results are 12-bits, and two ADC results are packed into one 24-bit data block
+        let needed_buffer_size = config.get_u8_buffer_size();
+        let fifo_limit = config.get_fifo_limit();
+        
         // FIFO has a limit of 8192 or 2048 24-bit data blocks, depending on the chip variant
-        let fifo_limit = config.num_samples_per_chirp as u32
-            * config.num_chirps_per_frame as u32
-            * config.rx_antennas as u32;
-        let needed_buffer_size = ((fifo_limit as usize * 12) / 8) + 4; // 4 bytes for the burst command / GSR0 + padding
         if buffer.len() != needed_buffer_size {
             return Err(Error::BufferWrongSize(buffer.len(), needed_buffer_size));
         }
@@ -394,7 +423,6 @@ where
         Ok(())
     }
 
-    // TODO: LE/BE conversion might be necessary
     async fn read_register(&mut self, reg: Register) -> Result<u32, Error> {
         let mut buffer: [u8; 4] = [((reg as u8) << 1) | READ_BIT, 0, 0, 0];
 
@@ -420,7 +448,6 @@ where
         }
     }
 
-    // TODO: LE/BE conversion might be necessary
     async fn write_register(&mut self, reg: Register, data: u32) -> Result<(), Error> {
         let mut buffer: [u8; 4] = [
             ((reg as u8) << 1) | WRITE_BIT,
