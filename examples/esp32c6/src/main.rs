@@ -20,10 +20,12 @@ use esp_hal::{
 };
 use embedded_hal_bus::spi::ExclusiveDevice;
 use bgt60trxx::{Radar, Variant, config::Config as RadarConfig};
+extern crate alloc;
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
+    esp_alloc::heap_allocator!(size: 72 * 1024);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -99,20 +101,20 @@ async fn main(spawner: Spawner) {
     radar.start().await.unwrap();
     info!("Radar frame generation started!");
 
-    let mut buffer = [0u8; 192+4];
-    let mut output = [0u16; 128];
-
     let mut test_word = 0x0001u16;
     let mut output_test = [0u16; 128];
     let mut error = false;
 
     loop {
-        radar.get_fifo_data(&mut buffer, &mut output).await.unwrap();
+        let frame = radar.get_frame().await.unwrap();
+        info!("Frame received, shape: {:?}", frame.shape());
 
         for i in 0..128 {
             output_test[i] = test_word;
             test_word = bgt60trxx::get_next_test_word(test_word);
         }
+
+        let output = frame.as_slice().unwrap();
 
         // Check if the output matches the test word
         for i in 0..128 {
@@ -128,7 +130,7 @@ async fn main(spawner: Spawner) {
             led_g.set_low();
             led_b.set_low();
         } else {
-            info!("Frame correctly received!");
+            info!("Frame verified!");
             led_r.set_low();
             led_g.set_high();
             led_b.set_low();
