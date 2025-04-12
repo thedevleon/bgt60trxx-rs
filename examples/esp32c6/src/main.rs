@@ -19,6 +19,7 @@ use esp_hal::{
     timer::OneShotTimer,
 };
 use embedded_hal_bus::spi::ExclusiveDevice;
+use ndarray::prelude::*;
 use bgt60trxx::{Radar, Variant, config::Config as RadarConfig};
 extern crate alloc;
 
@@ -87,7 +88,7 @@ async fn main(spawner: Spawner) {
     let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2).await.unwrap();
     info!("Radar initialized!");
 
-    let config = RadarConfig::default();
+    let config = RadarConfig::high_framerate_preset();
 
     info!("Configuring radar with: {}", config);
 
@@ -102,38 +103,39 @@ async fn main(spawner: Spawner) {
     info!("Radar frame generation started!");
 
     let mut test_word = 0x0001u16;
-    let mut output_test = [0u16; 128];
     let mut error = false;
 
     loop {
         let frame = radar.get_frame().await.unwrap();
         info!("Frame received, shape: {:?}", frame.shape());
 
-        for i in 0..128 {
-            output_test[i] = test_word;
-            test_word = bgt60trxx::get_next_test_word(test_word);
-        }
+        // we only care about the first antenna (since the test mode only replaces the first antenna)
+        let rx0_output = frame.slice(s![0, .., ..]);
 
-        let output = frame.as_slice().unwrap();
+        // go through each chirp
+        for chirp in rx0_output.outer_iter() { 
+    
+            for (i, sample) in chirp.iter().enumerate() { 
+                if *sample != test_word {
+                    info!("Output mismatch at index {}: expected {}, got {}", i, test_word, sample);
+                    error = true;
+                }
 
-        // Check if the output matches the test word
-        for i in 0..128 {
-            if output[i] != output_test[i] {
-                info!("Output mismatch at index {}: expected {}, got {}", i, output_test[i], output[i]);
-                error = true;
+                test_word = bgt60trxx::get_next_test_word(test_word);
+            }
+    
+            if error {
+                info!("Mismatch in test data!");
+                led_r.set_high();
+                led_g.set_low();
+                led_b.set_low();
+            } else {
+                info!("Frame verified!");
+                led_r.set_low();
+                led_g.set_high();
+                led_b.set_low();
             }
         }
 
-        if error {
-            info!("Mismatch in test data!");
-            led_r.set_high();
-            led_g.set_low();
-            led_b.set_low();
-        } else {
-            info!("Frame verified!");
-            led_r.set_low();
-            led_g.set_high();
-            led_b.set_low();
-        }
     }
 }

@@ -25,6 +25,7 @@ embedded-hal-bus = { version = "0.3.0", features = ["async"] }
 log = { version = "0.4.21" }
 static_cell = { version = "2.1.0", features = ["nightly"] }
 bgt60trxx = { path = "../../", features = ["alloc", "debug"]}
+ndarray = {version = "0.16.1", default-features = false }
 
 [profile.dev]
 # Rust debug is too slow.

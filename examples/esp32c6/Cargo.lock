@@ -545,6 +545,7 @@ dependencies = [
  "esp-hal-embassy",
  "esp-println",
  "log",
+ "ndarray",
  "static_cell",
 ]
 
