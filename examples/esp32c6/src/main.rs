@@ -1,26 +1,26 @@
 #![no_std]
 #![no_main]
 
-use log::{info};
-use esp_backtrace as _;
+use bgt60trxx::{config::Config as RadarConfig, Radar, Variant};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
+use embedded_hal_bus::spi::ExclusiveDevice;
+use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::{
     dma::{DmaRxBuf, DmaTxBuf},
     dma_buffers,
+    gpio::{Input, InputConfig, Level, Output, OutputConfig},
     spi::{
         master::{Config, Spi},
         Mode,
     },
     time::Rate,
-    gpio::{Input, InputConfig, Level, Output, OutputConfig},
     timer::OneShotTimer,
 };
-use embedded_hal_bus::spi::ExclusiveDevice;
+use log::info;
 use ndarray::prelude::*;
-use bgt60trxx::{Radar, Variant, config::Config as RadarConfig};
 extern crate alloc;
 
 #[esp_hal_embassy::main]
@@ -68,7 +68,7 @@ async fn main(spawner: Spawner) {
     let spi_bus = Spi::new(
         peripherals.SPI2,
         Config::default()
-            .with_frequency(Rate::from_khz(100))
+            .with_frequency(Rate::from_mhz(32)) // 32 MHz seems to be around the max with the 
             .with_mode(Mode::_0),
     )
     .unwrap()
@@ -85,10 +85,33 @@ async fn main(spawner: Spawner) {
     ldo_en.set_high();
     Timer::after(Duration::from_millis(500)).await; // Wait for LDO to stabilize
 
-    let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2).await.unwrap();
+    let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2)
+        .await
+        .unwrap();
     info!("Radar initialized!");
 
-    let config = RadarConfig::default();
+    // radar_low_framerate_single_antenna_config.json
+    let config = RadarConfig::new(
+        1,
+        1,
+        31,
+        60,
+        61020099000,
+        61479903000,
+        16,
+        128,
+        6.99625e-05,
+        0.100057,
+        2352941,
+        [
+            0x11e8270, 0x3088210, 0x9e967fd, 0xb0805b4, 0xd1027ff, 0xf010700, 0x11000000,
+            0x13000000, 0x15000000, 0x17000be0, 0x19000000, 0x1b000000, 0x1d000000, 0x1f000b60,
+            0x21103c51, 0x231ff41f, 0x25006f7b, 0x2d000490, 0x3b000480, 0x49000480, 0x57000480,
+            0x5911be0e, 0x5b677c0a, 0x5d00f000, 0x5f787e1e, 0x61f5208a, 0x630000a4, 0x65000252,
+            0x67000080, 0x69000000, 0x6b000000, 0x6d000000, 0x6f093910, 0x7f000100, 0x8f000100,
+            0x9f000100, 0xad000000, 0xb7000000,
+        ],
+    );
 
     info!("Configuring radar with: {}", config);
 
@@ -107,15 +130,19 @@ async fn main(spawner: Spawner) {
 
     loop {
         let frame = radar.get_frame().await.unwrap();
-        info!("Frame received, shape: {:?}, content: {:?}", frame.shape(), frame);
+        // info!(
+        //     "Frame received, shape: {:?}, content: {:?}",
+        //     frame.shape(),
+        //     frame
+        // );
 
         // we only care about the first antenna (since the test mode only replaces the first antenna)
         let rx0_output = frame.slice(s![0, .., ..]);
 
         // go through each chirp
-        for chirp in rx0_output.outer_iter() { 
+        for chirp in rx0_output.outer_iter() {
             // go through each sample in the chirp
-            for sample in chirp.iter() { 
+            for sample in chirp.iter() {
                 if *sample != test_word {
                     // info!("Output mismatch at index {}: expected {}, got {}", i, test_word, sample);
                     error = true;
