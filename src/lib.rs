@@ -310,7 +310,6 @@ where
     /// with the shape of [rx_antennas, num_chirps_per_frame, num_samples_per_chirp].
     /// 
     /// This function requires the alloc feature, since it dynamically allocates memory for the frames.
-    /// The frames are returned as a 3D array with the shape .
     #[cfg(feature = "alloc")]
     pub async fn get_frame(&mut self) -> Result<Array3<u16>, Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;

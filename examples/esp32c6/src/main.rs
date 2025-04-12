@@ -88,7 +88,7 @@ async fn main(spawner: Spawner) {
     let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay2).await.unwrap();
     info!("Radar initialized!");
 
-    let config = RadarConfig::high_framerate_preset();
+    let config = RadarConfig::default();
 
     info!("Configuring radar with: {}", config);
 
@@ -107,35 +107,34 @@ async fn main(spawner: Spawner) {
 
     loop {
         let frame = radar.get_frame().await.unwrap();
-        info!("Frame received, shape: {:?}", frame.shape());
+        info!("Frame received, shape: {:?}, content: {:?}", frame.shape(), frame);
 
         // we only care about the first antenna (since the test mode only replaces the first antenna)
         let rx0_output = frame.slice(s![0, .., ..]);
 
         // go through each chirp
         for chirp in rx0_output.outer_iter() { 
-    
-            for (i, sample) in chirp.iter().enumerate() { 
+            // go through each sample in the chirp
+            for sample in chirp.iter() { 
                 if *sample != test_word {
-                    info!("Output mismatch at index {}: expected {}, got {}", i, test_word, sample);
+                    // info!("Output mismatch at index {}: expected {}, got {}", i, test_word, sample);
                     error = true;
                 }
 
                 test_word = bgt60trxx::get_next_test_word(test_word);
             }
-    
-            if error {
-                info!("Mismatch in test data!");
-                led_r.set_high();
-                led_g.set_low();
-                led_b.set_low();
-            } else {
-                info!("Frame verified!");
-                led_r.set_low();
-                led_g.set_high();
-                led_b.set_low();
-            }
         }
 
+        if error {
+            info!("Mismatch in test data!");
+            led_r.set_high();
+            led_g.set_low();
+            led_b.set_low();
+        } else {
+            info!("Frame verified!");
+            led_r.set_low();
+            led_g.set_high();
+            led_b.set_low();
+        }
     }
 }
