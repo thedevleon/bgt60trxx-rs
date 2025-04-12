@@ -331,12 +331,6 @@ where
             config.rx_antennas as usize // stride for samples
         );
 
-        #[cfg(feature = "debug")]
-        info!(
-            "Shape: {:?}, Strides: {:?}",
-            shape, strides
-        );
-
         let mut frames =  vec![0u16; config.get_fifo_limit()];
         let mut buffer: Vec<u8> = vec![0u8; config.get_u8_buffer_size()];
 
@@ -368,8 +362,8 @@ where
         if buffer.len() != needed_buffer_size {
             return Err(Error::BufferWrongSize(buffer.len(), needed_buffer_size));
         }
-        if output.len() != fifo_limit as usize {
-            return Err(Error::OutputWrongSize(output.len(), fifo_limit as usize));
+        if output.len() != fifo_limit {
+            return Err(Error::OutputWrongSize(output.len(), fifo_limit));
         }
 
         self.interrupt_pin

@@ -20,11 +20,11 @@ exclude = [
 
 [features]
 debug = ["dep:log"]
-alloc = []
+alloc = ["dep:ndarray"]
 
 [dependencies]
 embedded-hal-async = "1.0.0"
 embedded-hal = "1.0.0"
 bitfield-struct = "0.10.1"
 log = { version = "0.4", optional = true }
-ndarray = {version = "0.16.1", default-features = false }
+ndarray = {version = "0.16.1", default-features = false, optional = true}
