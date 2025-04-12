@@ -166,7 +166,7 @@ impl Config {
         let fifo_limit = self.num_samples_per_chirp as usize
             * self.num_chirps_per_frame as usize
             * self.rx_antennas as usize;
-        ((fifo_limit as usize * 12) / 8) + 4 // 4 bytes for the burst command / GSR0 + padding
+        ((fifo_limit * 12) / 8) + 4 // 4 bytes for the burst command / GSR0 + padding
     }
 
     // The FIFO limit is the number of samples per chirp * number of chirps per frame * number of RX antennas
