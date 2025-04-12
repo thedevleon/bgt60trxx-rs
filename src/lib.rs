@@ -306,10 +306,11 @@ where
         Ok(())
     }
 
-    /// Gets the frame(s) from the FIFO and returns them as a 3D array.
+    /// Gets the frame(s) from the FIFO and returns them as a 3D array
+    /// with the shape of [rx_antennas, num_chirps_per_frame, num_samples_per_chirp].
     /// 
     /// This function requires the alloc feature, since it dynamically allocates memory for the frames.
-    /// The frames are returned as a 3D array with the shape (rx_antennas, num_chirps_per_frame, num_samples_per_chirp).
+    /// The frames are returned as a 3D array with the shape .
     #[cfg(feature = "alloc")]
     pub async fn get_frame(&mut self) -> Result<Array3<u16>, Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
@@ -319,15 +320,31 @@ where
             config.num_chirps_per_frame as usize, 
             config.num_samples_per_chirp as usize
         );
-     
-        let mut frames = Array::zeros(shape); // This assumes C-style ordering (row-major), which is the default for ndarray
-        let needed_buffer_size = config.get_u8_buffer_size();
-        let mut buffer: Vec<u8> = vec![0u8; needed_buffer_size];
-        let mut output_view = frames.as_slice_mut().unwrap();
-        self.get_fifo_data(&mut buffer, &mut output_view).await?;
-        
-        // Return the allocated array
-        Ok(frames)
+
+        // the data is arranged in the raw buffer in the following way
+        // 1 channel: aa aa aa aa
+        // 2 channels: ab ab ab ab
+        // 3 channels: ab ca bc ab
+        let strides = 
+        (
+            1 as usize, // stride for rx_antennas (innermost dimension)
+            config.rx_antennas as usize * config.num_samples_per_chirp as usize,  // stride for chirps
+            config.rx_antennas as usize // stride for samples
+        );
+
+        #[cfg(feature = "debug")]
+        info!(
+            "Shape: {:?}, Strides: {:?}",
+            shape, strides
+        );
+
+        let mut frames =  vec![0u16; config.get_fifo_limit()];
+        let mut buffer: Vec<u8> = vec![0u8; config.get_u8_buffer_size()];
+
+        self.get_fifo_data(&mut buffer, &mut frames).await?;
+
+        // We can ignore the error, since we know the frames vector is the correct size
+        Ok(Array3::from_shape_vec(shape.strides(strides), frames).unwrap())
     }
 
     /// Reads the data from the FIFO by performing a burst read of the FIFO register.
