@@ -26,7 +26,7 @@ extern crate alloc;
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
-    esp_alloc::heap_allocator!(size: 72 * 1024);
+    esp_alloc::heap_allocator!(size: 256 * 1024);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -81,6 +81,11 @@ async fn main(spawner: Spawner) {
 
     let spi_device = ExclusiveDevice::new(spi_bus, cs, delay1).unwrap();
 
+    // Set LED yellow to indicate initialization
+    led_r.set_high();
+    led_g.set_high();
+    led_b.set_low();
+
     // Turn on the LDO
     ldo_en.set_high();
     Timer::after(Duration::from_millis(500)).await; // Wait for LDO to stabilize
@@ -91,6 +96,7 @@ async fn main(spawner: Spawner) {
     info!("Radar initialized!");
 
     // radar_low_framerate_single_antenna_config.json
+
     let config = RadarConfig::new(
         1,
         1,
@@ -121,47 +127,45 @@ async fn main(spawner: Spawner) {
     // TODO: Spawn some tasks
     let _ = spawner;
 
-    radar.enable_test_mode().await.unwrap();
     radar.start().await.unwrap();
     info!("Radar frame generation started!");
 
-    let mut test_word = 0x0001u16;
-    let mut error = false;
+    // Set LED blue to indicate collection
+    led_r.set_low();
+    led_g.set_low();
+    led_b.set_high();
 
-    loop {
+    // Big array for complete frame data
+    let max_frames: usize = 32;
+    let mut frame_data = Array::<u16, _>::zeros((max_frames, 1, 16, 128));
+
+    for i in 0..max_frames {
         let frames = radar.get_frames().await.unwrap();
-        // info!(
-        //     "Frame received, shape: {:?}, content: {:?}",
-        //     frame.shape(),
-        //     frame
-        // );
+        info!(
+            "Frame received: {:?}",
+            frames.shape()
+        );
 
-        // we only care about the first antenna (since the test mode only replaces the first antenna)
-        let rx0_output = frames.slice(s![0, .., ..]);
-
-        // go through each chirp
-        for chirp in rx0_output.outer_iter() {
-            // go through each sample in the chirp
-            for sample in chirp.iter() {
-                if *sample != test_word {
-                    // info!("Output mismatch at index {}: expected {}, got {}", i, test_word, sample);
-                    error = true;
+        // Copy the frame data into the array
+        // surely there is a better way to do this
+        for j in 0..frames.shape()[0] {
+            for k in 0..frames.shape()[1] {
+                for l in 0..frames.shape()[2] {
+                    frame_data[[i, j, k, l]] = frames[[0, j, k, l]];
                 }
-
-                test_word = bgt60trxx::get_next_test_word(test_word);
             }
         }
-
-        if error {
-            info!("Mismatch in test data!");
-            led_r.set_high();
-            led_g.set_low();
-            led_b.set_low();
-        } else {
-            info!("Frame verified!");
-            led_r.set_low();
-            led_g.set_high();
-            led_b.set_low();
-        }
     }
+
+    radar.stop().await.unwrap();
+    info!("Radar frame generation stopped!");
+
+    // Set LED green to indicate finished collection
+    led_r.set_low();
+    led_g.set_high();
+    led_b.set_low();
+
+    // print out everything
+    info!("All Frames - Shape: {:?}, Strides: {:?}, Data: {:?}", frame_data.shape(), frame_data.strides(), frame_data.as_slice());
+
 }
