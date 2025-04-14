@@ -142,7 +142,7 @@ async fn main(spawner: Spawner) {
     for i in 0..max_frames {
         let frames = radar.get_frames().await.unwrap();
         info!(
-            "Frame received: {:?}",
+            "Frames received: {:?}",
             frames.shape()
         );
 
@@ -151,7 +151,7 @@ async fn main(spawner: Spawner) {
         for j in 0..frames.shape()[0] {
             for k in 0..frames.shape()[1] {
                 for l in 0..frames.shape()[2] {
-                    frame_data[[i, j, k, l]] = frames[[0, j, k, l]];
+                    frame_data[[i, j, k, l]] = frames[[j, k, l]];
                 }
             }
         }
