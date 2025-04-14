@@ -16,9 +16,12 @@ An async and no_std rust library to interface via SPI with the XENSIV™ BGT60TR
 - Configuring the radar
 - Burst reading FIFO
 - Test mode and test word generation
+- Converting the raw FIFO buffer into a correctly-shaped ndarray (requires `alloc` feature)
 
-## What doesn't work yet
-- Converting the raw FIFO buffer into a correctly shaped ndarray with frames, chirps and adc samples
+## Features
+- `alloc`: enables `get_frames` method which returns FIFO data in a dynamically allocated 3D ndarray in the shape of `[rx_antenna, chirp, adc_sample]`
+- `debug`: prints some debugging information via `log`
+
 
 ## Basic Usage
 ```rust
@@ -35,6 +38,10 @@ use bgt60trxx::{Radar, Variant, config::Config as RadarConfig};
 // let spi_device = ... (see embedded-hal-bus, e.g. ExclusiveDevice)
 // let delay = ...
 
+// if you want to use ndarray, alloc is required
+// also make sure to enable the alloc feature of bgt60trxx-rs
+extern crate alloc;
+
 let mut radar = Radar::new(Variant::BGT60TR13C, spi_device, rst, irq, delay).await.unwrap();
 info!("Radar initialized!");
 
@@ -47,13 +54,9 @@ info!("Radar configured!");
 radar.start().await.unwrap();
 info!("Radar frame generation started!");
 
-// See buffer size calucation in config::Config and add 4 bytes for initial burst command
-let mut buffer = [0u8; 192+4];
-let mut output = [0u16; 128];
-
 loop {
-    radar.get_fifo_data(&mut buffer, &mut output).await.unwrap();
-    // TODO: process fifo data in output buffer
+    let frames = radar.get_frames(&mut buffer, &mut output).await.unwrap();
+    // TODO: Post-processing of ADC data (adc -> hanning window -> range fft -> doppler fft -> ...) 
 }
 ```
 

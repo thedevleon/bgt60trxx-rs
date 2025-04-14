@@ -311,7 +311,7 @@ where
     /// 
     /// This function requires the alloc feature, since it dynamically allocates memory for the frames.
     #[cfg(feature = "alloc")]
-    pub async fn get_frame(&mut self) -> Result<Array3<u16>, Error> {
+    pub async fn get_frames(&mut self) -> Result<Array3<u16>, Error> {
         let config = self.config.as_ref().ok_or(Error::NoConfigSet)?;
 
         let shape = (

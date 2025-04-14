@@ -129,7 +129,7 @@ async fn main(spawner: Spawner) {
     let mut error = false;
 
     loop {
-        let frame = radar.get_frame().await.unwrap();
+        let frames = radar.get_frames().await.unwrap();
         // info!(
         //     "Frame received, shape: {:?}, content: {:?}",
         //     frame.shape(),
@@ -137,7 +137,7 @@ async fn main(spawner: Spawner) {
         // );
 
         // we only care about the first antenna (since the test mode only replaces the first antenna)
-        let rx0_output = frame.slice(s![0, .., ..]);
+        let rx0_output = frames.slice(s![0, .., ..]);
 
         // go through each chirp
         for chirp in rx0_output.outer_iter() {
